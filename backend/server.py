@@ -1358,6 +1358,634 @@ async def get_dashboard_trends(
         "period": period
     }
 
+# ============ AUDIT LOG HELPER ============
+
+async def create_audit_log(user_id: str, user_name: str, action_type: str, entity_type: str, entity_id: str, details: dict = None):
+    """Helper function to create audit logs"""
+    audit_log = AuditLog(
+        user_id=user_id,
+        user_name=user_name,
+        action_type=action_type,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        details=details or {}
+    )
+    await db.audit_logs.insert_one(audit_log.model_dump())
+
+# ============ GUARDS MANAGEMENT ROUTES ============
+
+@api_router.get("/guards")
+async def get_guards(
+    status: Optional[str] = None,
+    field_officer_id: Optional[str] = None,
+    site_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all guards with optional filtering"""
+    query = {}
+    
+    # If user is a field officer, only show assigned guards
+    if current_user.get("role") == "field_officer":
+        field_officer = await db.field_officers.find_one({"user_id": current_user["id"]}, {"_id": 0})
+        if field_officer:
+            query["id"] = {"$in": field_officer.get("assigned_guards", [])}
+    
+    if status:
+        query["status"] = status
+    if field_officer_id:
+        query["field_officer_id"] = field_officer_id
+    if site_id:
+        query["assigned_site_id"] = site_id
+    
+    guards = await db.guards.find(query, {"_id": 0}).to_list(1000)
+    
+    # Calculate profile completion for each guard
+    for guard in guards:
+        completion = 0
+        total_fields = 12
+        
+        if guard.get("first_name"): completion += 1
+        if guard.get("last_name"): completion += 1
+        if guard.get("phone"): completion += 1
+        if guard.get("address"): completion += 1
+        if guard.get("photo_url"): completion += 1
+        if guard.get("aadhaar_number"): completion += 1
+        if guard.get("pan_number"): completion += 1
+        if guard.get("assigned_site_id"): completion += 1
+        if guard.get("shift"): completion += 1
+        if guard.get("salary_type"): completion += 1
+        if guard.get("rate_per_day") and guard.get("rate_per_day") > 0: completion += 1
+        if guard.get("joining_date"): completion += 1
+        
+        guard["profile_completion_percentage"] = int((completion / total_fields) * 100)
+    
+    return guards
+
+@api_router.get("/guards/{guard_id}")
+async def get_guard(guard_id: str, current_user: dict = Depends(get_current_user)):
+    """Get guard by ID"""
+    guard = await db.guards.find_one({"id": guard_id}, {"_id": 0})
+    if not guard:
+        raise HTTPException(status_code=404, detail="Guard not found")
+    
+    # Check field officer access
+    if current_user.get("role") == "field_officer":
+        field_officer = await db.field_officers.find_one({"user_id": current_user["id"]}, {"_id": 0})
+        if field_officer and guard_id not in field_officer.get("assigned_guards", []):
+            raise HTTPException(status_code=403, detail="Access denied")
+    
+    return guard
+
+@api_router.post("/guards")
+async def create_guard(guard: GuardCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new guard"""
+    new_guard = Guard(**guard.model_dump())
+    await db.guards.insert_one(new_guard.model_dump())
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="created",
+        entity_type="guard",
+        entity_id=new_guard.id,
+        details={"name": f"{guard.first_name} {guard.last_name}"}
+    )
+    
+    return new_guard
+
+@api_router.put("/guards/{guard_id}")
+async def update_guard(guard_id: str, guard_update: dict, current_user: dict = Depends(get_current_user)):
+    """Update guard information"""
+    # Check field officer access
+    if current_user.get("role") == "field_officer":
+        field_officer = await db.field_officers.find_one({"user_id": current_user["id"]}, {"_id": 0})
+        if field_officer and guard_id not in field_officer.get("assigned_guards", []):
+            raise HTTPException(status_code=403, detail="Access denied")
+    
+    guard_update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    result = await db.guards.update_one({"id": guard_id}, {"$set": guard_update})
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Guard not found")
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="updated",
+        entity_type="guard",
+        entity_id=guard_id,
+        details={"fields_updated": list(guard_update.keys())}
+    )
+    
+    return {"message": "Guard updated successfully"}
+
+@api_router.delete("/guards/{guard_id}")
+async def delete_guard(guard_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a guard (soft delete by setting status to inactive)"""
+    if current_user.get("role") == "field_officer":
+        raise HTTPException(status_code=403, detail="Field officers cannot delete guards")
+    
+    result = await db.guards.update_one(
+        {"id": guard_id},
+        {"$set": {"status": "inactive", "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Guard not found")
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="deleted",
+        entity_type="guard",
+        entity_id=guard_id
+    )
+    
+    return {"message": "Guard deleted successfully"}
+
+# ============ CLIENTS MANAGEMENT ROUTES ============
+
+@api_router.get("/clients")
+async def get_clients(status: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Get all clients"""
+    query = {}
+    if status:
+        query["status"] = status
+    
+    clients = await db.clients.find(query, {"_id": 0}).to_list(1000)
+    return clients
+
+@api_router.get("/clients/{client_id}")
+async def get_client(client_id: str, current_user: dict = Depends(get_current_user)):
+    """Get client by ID"""
+    client = await db.clients.find_one({"id": client_id}, {"_id": 0})
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    return client
+
+@api_router.post("/clients")
+async def create_client(client: ClientCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new client"""
+    new_client = Client(**client.model_dump())
+    await db.clients.insert_one(new_client.model_dump())
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="created",
+        entity_type="client",
+        entity_id=new_client.id,
+        details={"name": client.name, "company": client.company}
+    )
+    
+    return new_client
+
+@api_router.put("/clients/{client_id}")
+async def update_client(client_id: str, client_update: dict, current_user: dict = Depends(get_current_user)):
+    """Update client information"""
+    result = await db.clients.update_one({"id": client_id}, {"$set": client_update})
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="updated",
+        entity_type="client",
+        entity_id=client_id,
+        details={"fields_updated": list(client_update.keys())}
+    )
+    
+    return {"message": "Client updated successfully"}
+
+@api_router.delete("/clients/{client_id}")
+async def delete_client(client_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a client (soft delete)"""
+    result = await db.clients.update_one({"id": client_id}, {"$set": {"status": "inactive"}})
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="deleted",
+        entity_type="client",
+        entity_id=client_id
+    )
+    
+    return {"message": "Client deleted successfully"}
+
+# ============ SITES MANAGEMENT ROUTES ============
+
+@api_router.get("/sites")
+async def get_sites(
+    client_id: Optional[str] = None,
+    field_officer_id: Optional[str] = None,
+    status: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all sites with optional filtering"""
+    query = {}
+    
+    # If user is a field officer, only show assigned sites
+    if current_user.get("role") == "field_officer":
+        field_officer = await db.field_officers.find_one({"user_id": current_user["id"]}, {"_id": 0})
+        if field_officer:
+            query["id"] = {"$in": field_officer.get("assigned_sites", [])}
+    
+    if client_id:
+        query["client_id"] = client_id
+    if field_officer_id:
+        query["assigned_field_officer_id"] = field_officer_id
+    if status:
+        query["status"] = status
+    
+    sites = await db.sites.find(query, {"_id": 0}).to_list(1000)
+    return sites
+
+@api_router.get("/sites/{site_id}")
+async def get_site(site_id: str, current_user: dict = Depends(get_current_user)):
+    """Get site by ID"""
+    site = await db.sites.find_one({"id": site_id}, {"_id": 0})
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    
+    # Check field officer access
+    if current_user.get("role") == "field_officer":
+        field_officer = await db.field_officers.find_one({"user_id": current_user["id"]}, {"_id": 0})
+        if field_officer and site_id not in field_officer.get("assigned_sites", []):
+            raise HTTPException(status_code=403, detail="Access denied")
+    
+    return site
+
+@api_router.post("/sites")
+async def create_site(site: SiteCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new site"""
+    new_site = Site(**site.model_dump())
+    await db.sites.insert_one(new_site.model_dump())
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="created",
+        entity_type="site",
+        entity_id=new_site.id,
+        details={"name": site.name, "location": site.location}
+    )
+    
+    return new_site
+
+@api_router.put("/sites/{site_id}")
+async def update_site(site_id: str, site_update: dict, current_user: dict = Depends(get_current_user)):
+    """Update site information"""
+    # Check field officer access
+    if current_user.get("role") == "field_officer":
+        field_officer = await db.field_officers.find_one({"user_id": current_user["id"]}, {"_id": 0})
+        if field_officer and site_id not in field_officer.get("assigned_sites", []):
+            raise HTTPException(status_code=403, detail="Access denied")
+    
+    result = await db.sites.update_one({"id": site_id}, {"$set": site_update})
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Site not found")
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="updated",
+        entity_type="site",
+        entity_id=site_id,
+        details={"fields_updated": list(site_update.keys())}
+    )
+    
+    return {"message": "Site updated successfully"}
+
+@api_router.delete("/sites/{site_id}")
+async def delete_site(site_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a site (soft delete)"""
+    if current_user.get("role") == "field_officer":
+        raise HTTPException(status_code=403, detail="Field officers cannot delete sites")
+    
+    result = await db.sites.update_one({"id": site_id}, {"$set": {"status": "inactive"}})
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Site not found")
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="deleted",
+        entity_type="site",
+        entity_id=site_id
+    )
+    
+    return {"message": "Site deleted successfully"}
+
+# ============ DOCUMENTS MANAGEMENT ROUTES ============
+
+@api_router.get("/documents/{guard_id}")
+async def get_guard_documents(guard_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all documents for a guard"""
+    # Check field officer access
+    if current_user.get("role") == "field_officer":
+        field_officer = await db.field_officers.find_one({"user_id": current_user["id"]}, {"_id": 0})
+        if field_officer and guard_id not in field_officer.get("assigned_guards", []):
+            raise HTTPException(status_code=403, detail="Access denied")
+    
+    documents = await db.documents.find({"guard_id": guard_id}, {"_id": 0}).sort("uploaded_at", -1).to_list(1000)
+    return documents
+
+@api_router.post("/documents/upload")
+async def upload_document(
+    guard_id: str,
+    document_type: str,
+    file: UploadFile = File(...),
+    expiry_date: Optional[str] = None,
+    notes: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload a document for a guard to Firebase Storage"""
+    try:
+        # Check field officer access
+        if current_user.get("role") == "field_officer":
+            field_officer = await db.field_officers.find_one({"user_id": current_user["id"]}, {"_id": 0})
+            if field_officer and guard_id not in field_officer.get("assigned_guards", []):
+                raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Get current version for this document type
+        existing_docs = await db.documents.find(
+            {"guard_id": guard_id, "document_type": document_type},
+            {"_id": 0}
+        ).sort("version", -1).limit(1).to_list(1)
+        
+        version = 1
+        if existing_docs:
+            version = existing_docs[0].get("version", 0) + 1
+        
+        # Read file content
+        file_content = await file.read()
+        
+        # Create Firebase Storage path
+        firebase_path = f"guards/{guard_id}/documents/{document_type}/v{version}/{file.filename}"
+        
+        # Upload to Firebase Storage
+        firebase_url = upload_file_to_firebase(
+            file_data=file_content,
+            file_path=firebase_path,
+            content_type=file.content_type or 'application/octet-stream'
+        )
+        
+        # Create document record
+        document = Document(
+            guard_id=guard_id,
+            document_type=document_type,
+            file_name=file.filename,
+            firebase_url=firebase_url,
+            firebase_path=firebase_path,
+            expiry_date=expiry_date,
+            verification_status="pending",
+            uploaded_by=current_user["id"],
+            version=version,
+            notes=notes
+        )
+        
+        await db.documents.insert_one(document.model_dump())
+        
+        # Create audit log
+        await create_audit_log(
+            user_id=current_user["id"],
+            user_name=current_user.get("full_name", current_user.get("email")),
+            action_type="uploaded",
+            entity_type="document",
+            entity_id=document.id,
+            details={
+                "guard_id": guard_id,
+                "document_type": document_type,
+                "file_name": file.filename,
+                "version": version
+            }
+        )
+        
+        return document
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Document upload failed: {str(e)}")
+
+@api_router.put("/documents/{document_id}/verify")
+async def verify_document(
+    document_id: str,
+    verification_status: str,
+    notes: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Verify or reject a document"""
+    if current_user.get("role") == "field_officer":
+        raise HTTPException(status_code=403, detail="Only admins can verify documents")
+    
+    if verification_status not in ["verified", "rejected"]:
+        raise HTTPException(status_code=400, detail="Invalid verification status")
+    
+    update_data = {
+        "verification_status": verification_status,
+        "verified_by": current_user["id"],
+        "verified_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    if notes:
+        update_data["notes"] = notes
+    
+    result = await db.documents.update_one({"id": document_id}, {"$set": update_data})
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Get document details for audit log
+    document = await db.documents.find_one({"id": document_id}, {"_id": 0})
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="verified",
+        entity_type="document",
+        entity_id=document_id,
+        details={
+            "guard_id": document.get("guard_id"),
+            "document_type": document.get("document_type"),
+            "verification_status": verification_status
+        }
+    )
+    
+    return {"message": f"Document {verification_status} successfully"}
+
+@api_router.delete("/documents/{document_id}")
+async def delete_document(document_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a document"""
+    if current_user.get("role") == "field_officer":
+        raise HTTPException(status_code=403, detail="Field officers cannot delete documents")
+    
+    # Get document to delete from Firebase
+    document = await db.documents.find_one({"id": document_id}, {"_id": 0})
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Delete from Firebase Storage
+    delete_file_from_firebase(document["firebase_path"])
+    
+    # Delete from database
+    await db.documents.delete_one({"id": document_id})
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="deleted",
+        entity_type="document",
+        entity_id=document_id,
+        details={
+            "guard_id": document.get("guard_id"),
+            "document_type": document.get("document_type")
+        }
+    )
+    
+    return {"message": "Document deleted successfully"}
+
+# ============ FIELD OFFICERS MANAGEMENT ROUTES ============
+
+@api_router.get("/field-officers")
+async def get_field_officers(status: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Get all field officers"""
+    if current_user.get("role") == "field_officer":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    query = {}
+    if status:
+        query["status"] = status
+    
+    field_officers = await db.field_officers.find(query, {"_id": 0}).to_list(1000)
+    return field_officers
+
+@api_router.get("/field-officers/{officer_id}")
+async def get_field_officer(officer_id: str, current_user: dict = Depends(get_current_user)):
+    """Get field officer by ID"""
+    if current_user.get("role") == "field_officer":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    officer = await db.field_officers.find_one({"id": officer_id}, {"_id": 0})
+    if not officer:
+        raise HTTPException(status_code=404, detail="Field officer not found")
+    return officer
+
+@api_router.post("/field-officers")
+async def create_field_officer(officer: FieldOfficerCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new field officer"""
+    if current_user.get("role") == "field_officer":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Check if user_id exists in admin_users
+    user = await db.admin_users.find_one({"id": officer.user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update user role to field_officer
+    await db.admin_users.update_one({"id": officer.user_id}, {"$set": {"role": "field_officer"}})
+    
+    new_officer = FieldOfficer(**officer.model_dump())
+    await db.field_officers.insert_one(new_officer.model_dump())
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="created",
+        entity_type="field_officer",
+        entity_id=new_officer.id,
+        details={"name": officer.name, "email": officer.email}
+    )
+    
+    return new_officer
+
+@api_router.put("/field-officers/{officer_id}")
+async def update_field_officer(officer_id: str, officer_update: dict, current_user: dict = Depends(get_current_user)):
+    """Update field officer information"""
+    if current_user.get("role") == "field_officer":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    result = await db.field_officers.update_one({"id": officer_id}, {"$set": officer_update})
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Field officer not found")
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="updated",
+        entity_type="field_officer",
+        entity_id=officer_id,
+        details={"fields_updated": list(officer_update.keys())}
+    )
+    
+    return {"message": "Field officer updated successfully"}
+
+@api_router.delete("/field-officers/{officer_id}")
+async def delete_field_officer(officer_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a field officer (soft delete)"""
+    if current_user.get("role") == "field_officer":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    result = await db.field_officers.update_one({"id": officer_id}, {"$set": {"status": "inactive"}})
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Field officer not found")
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="deleted",
+        entity_type="field_officer",
+        entity_id=officer_id
+    )
+    
+    return {"message": "Field officer deleted successfully"}
+
+# ============ AUDIT LOGS ROUTES ============
+
+@api_router.get("/audit-logs")
+async def get_audit_logs(
+    entity_type: Optional[str] = None,
+    entity_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    limit: int = 100,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get audit logs with optional filtering"""
+    if current_user.get("role") == "field_officer":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    query = {}
+    if entity_type:
+        query["entity_type"] = entity_type
+    if entity_id:
+        query["entity_id"] = entity_id
+    if user_id:
+        query["user_id"] = user_id
+    
+    logs = await db.audit_logs.find(query, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
+    return logs
+
 
 # Include the router in the main app
 app.include_router(api_router)
