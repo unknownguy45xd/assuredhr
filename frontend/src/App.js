@@ -254,6 +254,16 @@ function App() {
 
           {/* HR Portal Routes (Protected) */}
           <Route path="/" element={<ProtectedAdminRoute><Layout><Dashboard /></Layout></ProtectedAdminRoute>} />
+          
+          {/* Guard Management Routes */}
+          <Route path="/guards" element={<ProtectedAdminRoute><Layout><Guards /></Layout></ProtectedAdminRoute>} />
+          <Route path="/guards/:id" element={<ProtectedAdminRoute><Layout><GuardDetail /></Layout></ProtectedAdminRoute>} />
+          <Route path="/clients" element={<ProtectedAdminRoute><Layout><Clients /></Layout></ProtectedAdminRoute>} />
+          <Route path="/sites" element={<ProtectedAdminRoute><Layout><Sites /></Layout></ProtectedAdminRoute>} />
+          <Route path="/documents" element={<ProtectedAdminRoute><Layout><Documents /></Layout></ProtectedAdminRoute>} />
+          <Route path="/field-officers" element={<ProtectedAdminRoute><Layout><FieldOfficers /></Layout></ProtectedAdminRoute>} />
+          
+          {/* HRMS Routes */}
           <Route path="/employees" element={<ProtectedAdminRoute><Layout><Employees /></Layout></ProtectedAdminRoute>} />
           <Route path="/employees/:id" element={<ProtectedAdminRoute><Layout><EmployeeDetail /></Layout></ProtectedAdminRoute>} />
           <Route path="/org-structure" element={<ProtectedAdminRoute><Layout><OrgStructure /></Layout></ProtectedAdminRoute>} />
