@@ -25,15 +25,18 @@ const AdminLogin = () => {
       const response = await axios.post(`${API}/auth/login`, formData);
       const { token, user, role } = response.data;
       
-      if (role !== "admin") {
+      // Allow admin, field_officer, hr, supervisor, accountant roles
+      const allowedRoles = ["admin", "field_officer", "hr", "supervisor", "accountant"];
+      if (!allowedRoles.includes(role)) {
         toast.error("Access denied. Admin credentials required.");
         setLoading(false);
         return;
       }
       
-      // Store token and user data
+      // Store token, user data, and role
       localStorage.setItem("admin_token", token);
       localStorage.setItem("admin_data", JSON.stringify(user));
+      localStorage.setItem("user_role", role);
       
       toast.success(`Welcome back, ${user.full_name}!`);
       navigate("/");
@@ -50,11 +53,11 @@ const AdminLogin = () => {
       <div className="w-full max-w-md">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-700 mb-4">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 mb-4">
             <Shield className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">PeopleHub HRMS</h1>
-          <p className="text-gray-600">Administrator Portal</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Assured Security Services</h1>
+          <p className="text-gray-600">Workforce Management System</p>
         </div>
 
         <Card className="shadow-xl">
@@ -69,7 +72,7 @@ const AdminLogin = () => {
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <Input
                     type="email"
-                    placeholder="admin@peoplehub.com"
+                    placeholder="admin@assured.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="pl-10"
@@ -135,7 +138,7 @@ const AdminLogin = () => {
 
         <div className="mt-6 text-center text-sm text-gray-600 bg-white p-4 rounded-lg shadow">
           <p className="font-semibold mb-2">Demo Admin Credentials:</p>
-          <p className="font-mono text-xs">admin@peoplehub.com / admin123</p>
+          <p className="font-mono text-xs">admin@test.com / admin123</p>
         </div>
       </div>
     </div>
