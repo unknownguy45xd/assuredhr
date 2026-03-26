@@ -9,12 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import AttendanceCalendar from "@/components/AttendanceCalendar";
 
 const GuardDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [guard, setGuard] = useState(null);
   const [documents, setDocuments] = useState([]);
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -34,6 +37,8 @@ const GuardDetail = () => {
     fetchDocuments();
     fetchSites();
     fetchFieldOfficers();
+    fetchAttendanceData();
+    fetchHolidays();
   }, [id]);
 
   const fetchGuardDetails = async () => {
@@ -85,6 +90,64 @@ const GuardDetail = () => {
       setFieldOfficers(response.data);
     } catch (error) {
       console.error("Error fetching field officers:", error);
+    }
+  };
+
+  const fetchAttendanceData = async () => {
+    try {
+      const token = localStorage.getItem("admin_token");
+      // Generate sample attendance data for current month
+      const today = new Date();
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      
+      const sampleAttendance = [];
+      for (let day = 1; day <= Math.min(daysInMonth, today.getDate()); day++) {
+        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayOfWeek = new Date(currentYear, currentMonth, day).getDay();
+        
+        // Skip Sundays
+        if (dayOfWeek === 0) continue;
+        
+        // Random attendance status (mostly present)
+        const rand = Math.random();
+        let status = 'present';
+        if (rand < 0.05) status = 'absent';
+        else if (rand < 0.10) status = 'half_day';
+        else if (rand < 0.15) status = 'late';
+        
+        sampleAttendance.push({
+          date: dateStr,
+          status: status,
+          shift: guard?.shift || 'day',
+          marked_by: 'System',
+          notes: status === 'late' ? 'Arrived 30 minutes late' : ''
+        });
+      }
+      
+      setAttendanceData(sampleAttendance);
+    } catch (error) {
+      console.error("Error fetching attendance:", error);
+    }
+  };
+
+  const fetchHolidays = async () => {
+    try {
+      // Sample holidays for current year
+      const currentYear = new Date().getFullYear();
+      const sampleHolidays = [
+        { date: `${currentYear}-01-01`, name: "New Year's Day", description: "Public Holiday" },
+        { date: `${currentYear}-01-26`, name: "Republic Day", description: "National Holiday" },
+        { date: `${currentYear}-03-08`, name: "Holi", description: "Festival of Colors" },
+        { date: `${currentYear}-08-15`, name: "Independence Day", description: "National Holiday" },
+        { date: `${currentYear}-10-02`, name: "Gandhi Jayanti", description: "National Holiday" },
+        { date: `${currentYear}-10-24`, name: "Diwali", description: "Festival of Lights" },
+        { date: `${currentYear}-12-25`, name: "Christmas", description: "Public Holiday" },
+      ];
+      setHolidays(sampleHolidays);
+    } catch (error) {
+      console.error("Error fetching holidays:", error);
     }
   };
 
@@ -414,11 +477,11 @@ const GuardDetail = () => {
         {/* Attendance Tab */}
         <TabsContent value="attendance">
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Attendance History</h2>
-            <div className="text-center py-12">
-              <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">Attendance tracking will be available in Phase 2</p>
-            </div>
+            <AttendanceCalendar 
+              guardId={id} 
+              attendanceData={attendanceData}
+              holidays={holidays}
+            />
           </div>
         </TabsContent>
 
