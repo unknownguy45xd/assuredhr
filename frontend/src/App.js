@@ -54,6 +54,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   
   const menuItems = [
     { path: "/", icon: LayoutDashboard, label: "Dashboard" },
+    { path: "/guards", icon: Shield, label: "Guards" },
+    { path: "/clients", icon: Building2, label: "Clients" },
+    { path: "/sites", icon: MapPin, label: "Sites" },
+    { path: "/documents", icon: FileText, label: "Documents" },
+    { path: "/field-officers", icon: UserCog, label: "Field Officers" },
     { path: "/employees", icon: Users, label: "Employees" },
     { path: "/org-structure", icon: Briefcase, label: "Org Structure" },
     { path: "/attendance", icon: Clock, label: "Attendance" },
