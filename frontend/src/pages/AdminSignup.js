@@ -69,7 +69,7 @@ const AdminSignup = () => {
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Admin Sign Up
           </CardTitle>
-          <p className="text-gray-600">Create your admin account for PeopleHub</p>
+          <p className="text-gray-600">Create your admin account for Assured Security Services</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
