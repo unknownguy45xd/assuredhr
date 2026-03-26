@@ -2005,6 +2005,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Initialize Firebase on startup
+@app.on_event("startup")
+async def startup_event():
+    initialize_firebase()
+    logger.info("Application started")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
