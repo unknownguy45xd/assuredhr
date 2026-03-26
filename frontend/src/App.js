@@ -57,23 +57,32 @@ const API = `${BACKEND_URL}/api`;
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
-  
+  const [userRole, setUserRole] = useState("admin");
+
+  useEffect(() => {
+    const role = localStorage.getItem("user_role") || "admin";
+    setUserRole(role);
+  }, []);
+
   const menuItems = [
-    { path: "/", icon: LayoutDashboard, label: "Dashboard" },
-    { path: "/guards", icon: Shield, label: "Guards" },
-    { path: "/clients", icon: Building2, label: "Clients" },
-    { path: "/sites", icon: MapPin, label: "Sites" },
-    { path: "/documents", icon: FileText, label: "Documents" },
-    { path: "/field-officers", icon: UserCog, label: "Field Officers" },
-    { path: "/employees", icon: Users, label: "Employees" },
-    { path: "/org-structure", icon: Briefcase, label: "Org Structure" },
-    { path: "/attendance", icon: Clock, label: "Attendance" },
-    { path: "/leaves", icon: Calendar, label: "Leave Management" },
-    { path: "/recruitment", icon: Briefcase, label: "Recruitment" },
-    { path: "/onboarding-enhanced", icon: ClipboardCheck, label: "Onboarding+" },
-    { path: "/payroll-enhanced", icon: DollarSign, label: "Payroll+" },
-    { path: "/performance", icon: TrendingUp, label: "Performance" },
+    { path: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["admin", "hr", "supervisor", "field_officer", "accountant"] },
+    { path: "/guards", icon: Shield, label: "Guards", roles: ["admin", "hr", "supervisor", "field_officer"] },
+    { path: "/clients", icon: Building2, label: "Clients", roles: ["admin", "hr"] },
+    { path: "/sites", icon: MapPin, label: "Sites", roles: ["admin", "hr", "supervisor", "field_officer"] },
+    { path: "/documents", icon: FileText, label: "Documents", roles: ["admin", "hr", "supervisor", "field_officer"] },
+    { path: "/field-officers", icon: UserCog, label: "Field Officers", roles: ["admin", "hr"] },
+    { path: "/employees", icon: Users, label: "Employees", roles: ["admin", "hr"] },
+    { path: "/org-structure", icon: Briefcase, label: "Org Structure", roles: ["admin", "hr"] },
+    { path: "/attendance", icon: Clock, label: "Attendance", roles: ["admin", "hr", "supervisor", "field_officer"] },
+    { path: "/leaves", icon: Calendar, label: "Leave Management", roles: ["admin", "hr"] },
+    { path: "/recruitment", icon: Briefcase, label: "Recruitment", roles: ["admin", "hr"] },
+    { path: "/onboarding-enhanced", icon: ClipboardCheck, label: "Onboarding+", roles: ["admin", "hr"] },
+    { path: "/payroll-enhanced", icon: DollarSign, label: "Payroll+", roles: ["admin", "accountant"] },
+    { path: "/performance", icon: TrendingUp, label: "Performance", roles: ["admin", "hr"] },
   ];
+
+  // Filter menu items based on user role
+  const filteredMenuItems = menuItems.filter(item => item.roles.includes(userRole));
 
   return (
     <>
