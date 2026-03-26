@@ -17,7 +17,6 @@ import OrgStructure from "@/pages/OrgStructure";
 import PayrollEnhanced from "@/pages/PayrollEnhanced";
 import OnboardingEnhanced from "@/pages/OnboardingEnhanced";
 import AdminLogin from "@/pages/AdminLogin";
-import AdminSignup from "@/pages/AdminSignup";
 import LandingPage from "@/pages/LandingPage";
 import EmployeePortal from "@/pages/EmployeePortal";
 import EmployeeDashboard from "@/pages/EmployeeDashboard";
@@ -245,7 +244,7 @@ function App() {
           
           {/* Admin Login & Signup */}
           <Route path="/login" element={<AdminLogin />} />
-          <Route path="/signup" element={<AdminSignup />} />
+          <Route path="/signup" element={<Navigate to="/login" replace />} />
           
           {/* Employee Portal Routes */}
           <Route path="/employee/login" element={<Navigate to="/login" replace />} />
