@@ -348,3 +348,44 @@ class Invoice(InvoiceCreate):
     sent_at: Optional[str] = None
     paid_at: Optional[str] = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+# ============ ADVANCES & DEDUCTIONS MODELS ============
+
+class AdvanceCreate(BaseModel):
+    guard_id: str
+    amount: float
+    date: str
+    reason: str
+    approved_by: str
+    notes: Optional[str] = None
+
+class Advance(AdvanceCreate):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    status: str = "approved"  # approved, pending, rejected
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class DeductionCreate(BaseModel):
+    guard_id: str
+    amount: float
+    date: str
+    deduction_type: str  # penalty, loan_repayment, damage, uniform, other
+    reason: str
+    deducted_by: str
+    notes: Optional[str] = None
+
+class Deduction(DeductionCreate):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class SalaryAdjustmentCreate(BaseModel):
+    guard_id: str
+    month: str  # YYYY-MM format
+    adjustment_type: str  # bonus, penalty, overtime, other
+    amount: float
+    reason: str
+    adjusted_by: str
+    notes: Optional[str] = None
+
+class SalaryAdjustment(SalaryAdjustmentCreate):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
