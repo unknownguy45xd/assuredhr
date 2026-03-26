@@ -172,6 +172,7 @@ const Layout = ({ children }) => {
   const handleLogout = () => {
     localStorage.removeItem("admin_token");
     localStorage.removeItem("admin_data");
+    localStorage.removeItem("user_role");
     toast.success("Logged out successfully");
     navigate("/login");
   };
