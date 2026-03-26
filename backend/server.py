@@ -18,6 +18,7 @@ from passlib.context import CryptContext
 import sys
 sys.path.append('/app/backend')
 from models_enhanced import *
+from firebase_config import initialize_firebase, upload_file_to_firebase, delete_file_from_firebase
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
