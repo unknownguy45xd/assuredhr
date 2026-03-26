@@ -28,6 +28,12 @@ import EmployeeAttendance from "@/pages/EmployeeAttendance";
 import EmployeeLeaves from "@/pages/EmployeeLeaves";
 import EmployeePayslips from "@/pages/EmployeePayslips";
 import EmployeeDocuments from "@/pages/EmployeeDocuments";
+import Guards from "@/pages/Guards";
+import GuardDetail from "@/pages/GuardDetail";
+import Clients from "@/pages/Clients";
+import Sites from "@/pages/Sites";
+import Documents from "@/pages/Documents";
+import FieldOfficers from "@/pages/FieldOfficers";
 import { 
   LayoutDashboard, 
   Users, 
