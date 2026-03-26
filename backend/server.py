@@ -1996,6 +1996,208 @@ async def get_audit_logs(
     logs = await db.audit_logs.find(query, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
     return logs
 
+# ============ ADVANCES MANAGEMENT ROUTES ============
+
+@api_router.get("/advances/{guard_id}")
+async def get_guard_advances(guard_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all advances for a guard"""
+    advances = await db.advances.find({"guard_id": guard_id}, {"_id": 0}).sort("date", -1).to_list(1000)
+    return advances
+
+@api_router.post("/advances")
+async def create_advance(advance: AdvanceCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new advance payment"""
+    new_advance = Advance(**advance.model_dump())
+    await db.advances.insert_one(new_advance.model_dump())
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="created",
+        entity_type="advance",
+        entity_id=new_advance.id,
+        details={"guard_id": advance.guard_id, "amount": advance.amount, "reason": advance.reason}
+    )
+    
+    return new_advance
+
+@api_router.put("/advances/{advance_id}")
+async def update_advance(advance_id: str, advance_update: dict, current_user: dict = Depends(get_current_user)):
+    """Update advance information"""
+    result = await db.advances.update_one({"id": advance_id}, {"$set": advance_update})
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Advance not found")
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="updated",
+        entity_type="advance",
+        entity_id=advance_id,
+        details={"fields_updated": list(advance_update.keys())}
+    )
+    
+    return {"message": "Advance updated successfully"}
+
+@api_router.delete("/advances/{advance_id}")
+async def delete_advance(advance_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete an advance"""
+    if current_user.get("role") not in ["admin", "accountant"]:
+        raise HTTPException(status_code=403, detail="Only admins and accountants can delete advances")
+    
+    result = await db.advances.delete_one({"id": advance_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Advance not found")
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="deleted",
+        entity_type="advance",
+        entity_id=advance_id
+    )
+    
+    return {"message": "Advance deleted successfully"}
+
+# ============ DEDUCTIONS MANAGEMENT ROUTES ============
+
+@api_router.get("/deductions/{guard_id}")
+async def get_guard_deductions(guard_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all deductions for a guard"""
+    deductions = await db.deductions.find({"guard_id": guard_id}, {"_id": 0}).sort("date", -1).to_list(1000)
+    return deductions
+
+@api_router.post("/deductions")
+async def create_deduction(deduction: DeductionCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new deduction"""
+    new_deduction = Deduction(**deduction.model_dump())
+    await db.deductions.insert_one(new_deduction.model_dump())
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="created",
+        entity_type="deduction",
+        entity_id=new_deduction.id,
+        details={"guard_id": deduction.guard_id, "amount": deduction.amount, "type": deduction.deduction_type}
+    )
+    
+    return new_deduction
+
+@api_router.put("/deductions/{deduction_id}")
+async def update_deduction(deduction_id: str, deduction_update: dict, current_user: dict = Depends(get_current_user)):
+    """Update deduction information"""
+    result = await db.deductions.update_one({"id": deduction_id}, {"$set": deduction_update})
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Deduction not found")
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="updated",
+        entity_type="deduction",
+        entity_id=deduction_id,
+        details={"fields_updated": list(deduction_update.keys())}
+    )
+    
+    return {"message": "Deduction updated successfully"}
+
+@api_router.delete("/deductions/{deduction_id}")
+async def delete_deduction(deduction_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a deduction"""
+    if current_user.get("role") not in ["admin", "accountant"]:
+        raise HTTPException(status_code=403, detail="Only admins and accountants can delete deductions")
+    
+    result = await db.deductions.delete_one({"id": deduction_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Deduction not found")
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user["id"],
+        user_name=current_user.get("full_name", current_user.get("email")),
+        action_type="deleted",
+        entity_type="deduction",
+        entity_id=deduction_id
+    )
+    
+    return {"message": "Deduction deleted successfully"}
+
+# ============ SALARY CALCULATION ROUTE ============
+
+@api_router.get("/salary-summary/{guard_id}")
+async def get_salary_summary(
+    guard_id: str,
+    month: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get salary summary for a guard for a specific month"""
+    # Get guard details
+    guard = await db.guards.find_one({"id": guard_id}, {"_id": 0})
+    if not guard:
+        raise HTTPException(status_code=404, detail="Guard not found")
+    
+    # If no month specified, use current month
+    if not month:
+        month = datetime.now(timezone.utc).strftime("%Y-%m")
+    
+    # Calculate days in month
+    year, month_num = map(int, month.split("-"))
+    days_in_month = (datetime(year, month_num + 1, 1) - datetime(year, month_num, 1)).days if month_num < 12 else 31
+    
+    # Get attendance data (for now, assume all present - will be replaced with actual data in Phase 2)
+    present_days = days_in_month - 4  # Assuming 4 Sundays
+    
+    # Calculate gross salary
+    if guard["salary_type"] == "daily":
+        gross_salary = guard["rate_per_day"] * present_days
+    else:
+        gross_salary = guard.get("basic_salary", 0)
+    
+    # Get advances for the month
+    start_date = f"{month}-01"
+    end_date = f"{month}-{days_in_month:02d}"
+    advances = await db.advances.find({
+        "guard_id": guard_id,
+        "date": {"$gte": start_date, "$lte": end_date},
+        "status": "approved"
+    }, {"_id": 0}).to_list(1000)
+    total_advances = sum(adv["amount"] for adv in advances)
+    
+    # Get deductions for the month
+    deductions = await db.deductions.find({
+        "guard_id": guard_id,
+        "date": {"$gte": start_date, "$lte": end_date}
+    }, {"_id": 0}).to_list(1000)
+    total_deductions = sum(ded["amount"] for ded in deductions)
+    
+    # Calculate net salary
+    net_salary = gross_salary - total_advances - total_deductions
+    
+    return {
+        "guard_id": guard_id,
+        "guard_name": f"{guard['first_name']} {guard['last_name']}",
+        "month": month,
+        "salary_type": guard["salary_type"],
+        "rate_per_day": guard["rate_per_day"],
+        "present_days": present_days,
+        "gross_salary": gross_salary,
+        "total_advances": total_advances,
+        "total_deductions": total_deductions,
+        "net_salary": net_salary,
+        "advances": advances,
+        "deductions": deductions
+    }
+
 
 # Include the router in the main app
 app.include_router(api_router)
