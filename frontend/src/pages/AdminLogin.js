@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Users, Lock, Mail, Eye, EyeOff, Shield } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, Shield } from "lucide-react";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -125,21 +125,9 @@ const AdminLogin = () => {
                   Sign Up
                 </button>
               </div>
-              <button
-                onClick={() => navigate("/employee/login")}
-                className="w-full text-sm text-gray-600 hover:text-gray-900 flex items-center justify-center gap-2"
-              >
-                <Users className="w-4 h-4" />
-                Employee Portal →
-              </button>
             </div>
           </CardContent>
         </Card>
-
-        <div className="mt-6 text-center text-sm text-gray-600 bg-white p-4 rounded-lg shadow">
-          <p className="font-semibold mb-2">Demo Admin Credentials:</p>
-          <p className="font-mono text-xs">admin@test.com / admin123</p>
-        </div>
       </div>
     </div>
   );
