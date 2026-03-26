@@ -59,13 +59,23 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        employee_id: str = payload.get("sub")
-        if employee_id is None:
+        user_id: str = payload.get("sub")
+        role: str = payload.get("role", "employee")
+        
+        if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-        employee = await db.employees.find_one({"id": employee_id}, {"_id": 0})
-        if employee is None:
+        
+        # Check admin users first
+        if role == "admin" or role == "field_officer":
+            user = await db.admin_users.find_one({"id": user_id}, {"_id": 0})
+            if user:
+                return user
+        
+        # Check employees
+        user = await db.employees.find_one({"id": user_id}, {"_id": 0})
+        if user is None:
             raise HTTPException(status_code=401, detail="User not found")
-        return employee
+        return user
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.JWTError:
