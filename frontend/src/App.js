@@ -16,10 +16,7 @@ import Performance from "@/pages/Performance";
 import OrgStructure from "@/pages/OrgStructure";
 import PayrollEnhanced from "@/pages/PayrollEnhanced";
 import OnboardingEnhanced from "@/pages/OnboardingEnhanced";
-import EmployeeLogin from "@/pages/EmployeeLogin";
 import AdminLogin from "@/pages/AdminLogin";
-import AdminSignup from "@/pages/AdminSignup";
-import EmployeeSignup from "@/pages/EmployeeSignup";
 import LandingPage from "@/pages/LandingPage";
 import EmployeePortal from "@/pages/EmployeePortal";
 import EmployeeDashboard from "@/pages/EmployeeDashboard";
@@ -247,11 +244,11 @@ function App() {
           
           {/* Admin Login & Signup */}
           <Route path="/login" element={<AdminLogin />} />
-          <Route path="/signup" element={<AdminSignup />} />
+          <Route path="/signup" element={<Navigate to="/login" replace />} />
           
           {/* Employee Portal Routes */}
-          <Route path="/employee/login" element={<EmployeeLogin />} />
-          <Route path="/employee/signup" element={<EmployeeSignup />} />
+          <Route path="/employee/login" element={<Navigate to="/login" replace />} />
+          <Route path="/employee/signup" element={<Navigate to="/login" replace />} />
           <Route path="/employee" element={<EmployeePortal />}>
             <Route index element={<Navigate to="/employee/dashboard" replace />} />
             <Route path="dashboard" element={<EmployeeDashboard />} />
