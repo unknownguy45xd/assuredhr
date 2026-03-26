@@ -84,8 +84,8 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 <Users className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">PeopleHub</h1>
-                <p className="text-xs text-gray-500">Pro HRMS</p>
+                <h1 className="text-xl font-bold text-gray-900">Assured Security</h1>
+                <p className="text-xs text-gray-500">Services</p>
               </div>
             </div>
             <button 
