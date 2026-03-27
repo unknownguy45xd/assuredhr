@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { FileText, Search, CheckCircle, XCircle, Clock, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ const Documents = () => {
   const fetchGuards = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/guards`, {
+      const response = await apiClient.get(`${API}/guards`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setGuards(response.data);
@@ -47,7 +47,7 @@ const Documents = () => {
   const fetchDocuments = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/documents/${selectedGuard}`, {
+      const response = await apiClient.get(`${API}/documents/${selectedGuard}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDocuments(response.data);
@@ -77,7 +77,7 @@ const Documents = () => {
   const handleVerifyDocument = async (docId, status) => {
     try {
       const token = localStorage.getItem("admin_token");
-      await axios.put(`${API}/documents/${docId}/verify`, 
+      await apiClient.put(`${API}/documents/${docId}/verify`, 
         { verification_status: status },
         { headers: { Authorization: `Bearer ${token}` } }
       );

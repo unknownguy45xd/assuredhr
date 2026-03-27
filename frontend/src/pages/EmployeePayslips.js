@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ const EmployeePayslips = () => {
   const fetchPayslips = async () => {
     const token = localStorage.getItem("employee_token");
     try {
-      const response = await axios.get(`${API}/employee/payslips`, {
+      const response = await apiClient.get(`${API}/employee/payslips`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPayslips(response.data);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { Building2, Plus, Search, Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ const Clients = () => {
   const fetchClients = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/clients`, {
+      const response = await apiClient.get(`${API}/clients`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setClients(response.data);
@@ -65,7 +65,7 @@ const Clients = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("admin_token");
-      await axios.post(`${API}/clients`, formData, {
+      await apiClient.post(`${API}/clients`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success("Client added successfully");
@@ -82,7 +82,7 @@ const Clients = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("admin_token");
-      await axios.put(`${API}/clients/${selectedClient.id}`, formData, {
+      await apiClient.put(`${API}/clients/${selectedClient.id}`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success("Client updated successfully");

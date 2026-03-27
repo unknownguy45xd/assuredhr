@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import { API, toast } from "@/App";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,7 +94,7 @@ const Dashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`${API}/dashboard/stats`);
+      const response = await apiClient.get(`${API}/dashboard/stats`);
       setStats(response.data);
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -113,7 +113,7 @@ const Dashboard = () => {
         url += `&start_date=${customStartDate}&end_date=${customEndDate}`;
       }
       
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       setTrends(response.data.trends);
       setChanges(response.data.changes);
       

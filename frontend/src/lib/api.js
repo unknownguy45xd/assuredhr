@@ -14,6 +14,7 @@ let apiClientInterceptorId = null;
 
 const attachAuthHeader = (config = {}) => {
   const token = getToken();
+  console.log("TOKEN:", token);
   if (!token) return config;
 
   const headers = config.headers || {};
@@ -23,6 +24,13 @@ const attachAuthHeader = (config = {}) => {
 
   if (typeof headers.set === "function") {
     headers.set("Authorization", `Bearer ${token}`);
+    console.log("HEADERS:", headers);
+    return { ...config, headers };
+  }
+
+  const nextConfig = { ...config, headers: { ...headers, Authorization: `Bearer ${token}` } };
+  console.log("HEADERS:", nextConfig.headers);
+  return nextConfig;
     return { ...config, headers };
   }
 

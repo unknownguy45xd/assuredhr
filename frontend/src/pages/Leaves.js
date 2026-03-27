@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,8 +44,8 @@ const Leaves = () => {
   const fetchData = async () => {
     try {
       const [leavesRes, employeesRes] = await Promise.all([
-        axios.get(`${API}/leave-requests`),
-        axios.get(`${API}/employees?status=active`)
+        apiClient.get(`${API}/leave-requests`),
+        apiClient.get(`${API}/employees?status=active`)
       ]);
       setLeaves(leavesRes.data);
       setEmployees(employeesRes.data);
@@ -60,7 +60,7 @@ const Leaves = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/leave-requests`, {
+      await apiClient.post(`${API}/leave-requests`, {
         ...formData,
         days_count: parseFloat(formData.days_count)
       });
@@ -83,7 +83,7 @@ const Leaves = () => {
 
   const handleApproval = async (leaveId, status) => {
     try {
-      await axios.put(`${API}/leave-requests/${leaveId}/approve`, {
+      await apiClient.put(`${API}/leave-requests/${leaveId}/approve`, {
         status,
         approved_by: "HR Manager"
       });

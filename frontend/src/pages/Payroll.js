@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { formatINR, getErrorMessage } from "@/lib/formatters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,8 +45,8 @@ const Payroll = () => {
   const fetchData = async () => {
     try {
       const [payrollRes, employeesRes] = await Promise.all([
-        axios.get(`${API}/payroll`),
-        axios.get(`${API}/employees?status=active`)
+        apiClient.get(`${API}/payroll`),
+        apiClient.get(`${API}/employees?status=active`)
       ]);
       setPayrollRecords(payrollRes.data);
       setEmployees(employeesRes.data);
@@ -61,7 +61,7 @@ const Payroll = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/payroll`, {
+      await apiClient.post(`${API}/payroll`, {
         ...formData,
         basic_salary: parseFloat(formData.basic_salary),
         allowances: parseFloat(formData.allowances),

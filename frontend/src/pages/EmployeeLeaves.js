@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ const EmployeeLeaves = () => {
   const fetchLeaves = async () => {
     const token = localStorage.getItem("employee_token");
     try {
-      const response = await axios.get(`${API}/employee/leaves`, {
+      const response = await apiClient.get(`${API}/employee/leaves`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setLeaves(response.data);
@@ -48,7 +48,7 @@ const EmployeeLeaves = () => {
     e.preventDefault();
     const token = localStorage.getItem("employee_token");
     try {
-      await axios.post(`${API}/employee/leaves`, {
+      await apiClient.post(`${API}/employee/leaves`, {
         ...formData,
         days_count: parseFloat(formData.days_count),
         employee_id: "dummy" // Will be overridden by backend

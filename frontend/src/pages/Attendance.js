@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { getErrorMessage } from "@/lib/formatters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,8 +43,8 @@ const Attendance = () => {
   const fetchData = async () => {
     try {
       const [attendanceRes, employeesRes] = await Promise.all([
-        axios.get(`${API}/attendance`),
-        axios.get(`${API}/employees?status=active`)
+        apiClient.get(`${API}/attendance`),
+        apiClient.get(`${API}/employees?status=active`)
       ]);
       setAttendance(attendanceRes.data);
       setEmployees(employeesRes.data);
@@ -59,7 +59,7 @@ const Attendance = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/attendance`, formData);
+      await apiClient.post(`${API}/attendance`, formData);
       toast.success("Attendance recorded successfully");
       setIsDialogOpen(false);
       setFormData({
@@ -81,6 +81,7 @@ const Attendance = () => {
     try {
       const now = new Date();
       const checkIn = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      await apiClient.post(`${API}/attendance`, {
       await axios.post(`${API}/attendance`, {
         employee_id: employeeId,
         date: new Date().toISOString().split("T")[0],
