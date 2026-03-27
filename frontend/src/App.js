@@ -280,6 +280,18 @@ function App() {
           <Route path="/employee/login" element={<Navigate to="/login" replace />} />
           <Route path="/employee/signup" element={<Navigate to="/login" replace />} />
           <Route path="/employee/*" element={<Navigate to="/login" replace />} />
+          {/* Employee Portal Routes */}
+          <Route path="/employee/login" element={<Navigate to="/login" replace />} />
+          <Route path="/employee/signup" element={<Navigate to="/login" replace />} />
+          <Route path="/employee" element={<EmployeePortal />}>
+            <Route index element={<Navigate to="/employee/dashboard" replace />} />
+            <Route path="dashboard" element={<EmployeeDashboard />} />
+            <Route path="profile" element={<EmployeeProfile />} />
+            <Route path="attendance" element={<EmployeeAttendance />} />
+            <Route path="leaves" element={<EmployeeLeaves />} />
+            <Route path="payslips" element={<EmployeePayslips />} />
+            <Route path="documents" element={<EmployeeDocuments />} />
+          </Route>
 
           {/* HR Portal Routes (Protected) */}
           <Route path="/" element={<ProtectedAdminRoute><Layout><Dashboard /></Layout></ProtectedAdminRoute>} />
