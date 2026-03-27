@@ -1,6 +1,3 @@
-# Firebase credentials
-firebase-admin.json
-
 # Environment files
 .env
 .env.local

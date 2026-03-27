@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends
-from fastapi.responses import StreamingResponse
+from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -18,7 +18,7 @@ from passlib.context import CryptContext
 import sys
 sys.path.append('/app/backend')
 from models_enhanced import *
-from firebase_config import initialize_firebase, upload_file_to_firebase, delete_file_from_firebase
+from cloudinary_config import configure_cloudinary, upload_file_to_cloudinary, delete_file_from_cloudinary
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -348,6 +348,17 @@ async def get_admin_users(current_user: dict = Depends(get_current_user)):
 async def upload_file(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     try:
         file_bytes = await file.read()
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        safe_name = Path(file.filename or "upload").stem.replace(" ", "_")
+        upload_result = upload_file_to_cloudinary(
+            file_data=file_bytes,
+            filename=f"{safe_name}_{timestamp}",
+            folder="assuredhr/uploads"
+        )
+        return {
+            "file_name": file.filename,
+            "secure_url": upload_result.get("secure_url"),
+            "public_id": upload_result.get("public_id"),
         extension = Path(file.filename).suffix if file.filename else ""
         firebase_path = f"uploads/{datetime.now(timezone.utc).strftime('%Y/%m/%d')}/{uuid.uuid4().hex}{extension}"
         public_url = upload_file_to_firebase(
@@ -530,18 +541,34 @@ async def upload_employee_document(
     current_user: dict = Depends(get_current_user)
 ):
     file_data = await file.read()
-    encoded_file = base64.b64encode(file_data).decode('utf-8')
-    
-    doc = DocumentUpload(
-        entity_type="employee",
-        entity_id=current_user["id"],
-        document_type=document_type,
-        file_name=file.filename,
-        file_data=encoded_file
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    safe_name = Path(file.filename or "employee_doc").stem.replace(" ", "_")
+
+    uploaded = upload_file_to_cloudinary(
+        file_data=file_data,
+        filename=f"{safe_name}_{timestamp}",
+        folder=f"assuredhr/employees/{current_user['id']}/{document_type}",
     )
-    
-    await db.documents.insert_one(doc.model_dump())
-    return {"message": "Document uploaded successfully", "document_id": doc.id}
+
+    doc_id = str(uuid.uuid4())
+    document = {
+        "id": doc_id,
+        "entity_type": "employee",
+        "entity_id": current_user["id"],
+        "document_type": document_type,
+        "file_name": file.filename,
+        "cloudinary_url": uploaded.get("secure_url"),
+        "cloudinary_public_id": uploaded.get("public_id"),
+        "uploaded_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    await db.documents.insert_one(document)
+    return {
+        "message": "Document uploaded successfully",
+        "document_id": doc_id,
+        "secure_url": uploaded.get("secure_url"),
+        "public_id": uploaded.get("public_id"),
+    }
 
 @api_router.get("/employee/dashboard")
 async def get_employee_dashboard(current_user: dict = Depends(get_current_user)):
@@ -930,22 +957,6 @@ async def update_performance_review(review_id: str, review: PerformanceReviewCre
 
 # ============ DOCUMENT ROUTES ============
 
-@api_router.post("/documents/upload")
-async def upload_document(file: UploadFile, entity_type: str, entity_id: str, document_type: str):
-    file_data = await file.read()
-    encoded_file = base64.b64encode(file_data).decode('utf-8')
-    
-    doc = DocumentUpload(
-        entity_type=entity_type,
-        entity_id=entity_id,
-        document_type=document_type,
-        file_name=file.filename,
-        file_data=encoded_file
-    )
-    
-    await db.documents.insert_one(doc.model_dump())
-    return {"message": "Document uploaded successfully", "document_id": doc.id}
-
 @api_router.get("/documents")
 async def get_documents(entity_type: Optional[str] = None, entity_id: Optional[str] = None):
     query = {}
@@ -953,7 +964,7 @@ async def get_documents(entity_type: Optional[str] = None, entity_id: Optional[s
         query["entity_type"] = entity_type
     if entity_id:
         query["entity_id"] = entity_id
-    documents = await db.documents.find(query, {"_id": 0, "file_data": 0}).to_list(1000)
+    documents = await db.documents.find(query, {"_id": 0}).to_list(1000)
     return documents
 
 @api_router.get("/documents/{document_id}/download")
@@ -961,13 +972,12 @@ async def download_document(document_id: str):
     document = await db.documents.find_one({"id": document_id}, {"_id": 0})
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
-    
-    file_data = base64.b64decode(document["file_data"])
-    return StreamingResponse(
-        io.BytesIO(file_data),
-        media_type="application/octet-stream",
-        headers={"Content-Disposition": f"attachment; filename={document['file_name']}"}
-    )
+
+    cloudinary_url = document.get("cloudinary_url")
+    if not cloudinary_url:
+        raise HTTPException(status_code=404, detail="Document file URL not available")
+
+    return RedirectResponse(url=cloudinary_url)
 
 # ============ ORGANIZATIONAL STRUCTURE ROUTES ============
 
@@ -1762,7 +1772,7 @@ async def upload_document(
     notes: Optional[str] = None,
     current_user: dict = Depends(get_current_user)
 ):
-    """Upload a document for a guard to Firebase Storage"""
+    """Upload a document for a guard to Cloudinary"""
     try:
         # Check field officer access
         if current_user.get("role") == "field_officer":
@@ -1783,14 +1793,12 @@ async def upload_document(
         # Read file content
         file_content = await file.read()
         
-        # Create Firebase Storage path
-        firebase_path = f"guards/{guard_id}/documents/{document_type}/v{version}/{file.filename}"
-        
-        # Upload to Firebase Storage
-        firebase_url = upload_file_to_firebase(
+        # Upload to Cloudinary
+        safe_name = Path(file.filename or "guard_doc").stem.replace(" ", "_")
+        uploaded = upload_file_to_cloudinary(
             file_data=file_content,
-            file_path=firebase_path,
-            content_type=file.content_type or 'application/octet-stream'
+            filename=f"{safe_name}_v{version}",
+            folder=f"assuredhr/guards/{guard_id}/{document_type}"
         )
         
         # Create document record
@@ -1798,8 +1806,8 @@ async def upload_document(
             guard_id=guard_id,
             document_type=document_type,
             file_name=file.filename,
-            firebase_url=firebase_url,
-            firebase_path=firebase_path,
+            cloudinary_url=uploaded.get("secure_url"),
+            cloudinary_public_id=uploaded.get("public_id"),
             expiry_date=expiry_date,
             verification_status="pending",
             uploaded_by=current_user["id"],
@@ -1882,13 +1890,15 @@ async def delete_document(document_id: str, current_user: dict = Depends(get_cur
     if current_user.get("role") == "field_officer":
         raise HTTPException(status_code=403, detail="Field officers cannot delete documents")
     
-    # Get document to delete from Firebase
+    # Get document to delete from Cloudinary
     document = await db.documents.find_one({"id": document_id}, {"_id": 0})
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
     
-    # Delete from Firebase Storage
-    delete_file_from_firebase(document["firebase_path"])
+    # Delete from Cloudinary (best effort)
+    public_id = document.get("cloudinary_public_id")
+    if public_id:
+        delete_file_from_cloudinary(public_id)
     
     # Delete from database
     await db.documents.delete_one({"id": document_id})
@@ -2257,9 +2267,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize Firebase on startup
+# Configure Cloudinary on startup
 @app.on_event("startup")
 async def startup_event():
+    cloudinary_enabled = configure_cloudinary()
+    if cloudinary_enabled:
+        logger.info("Cloudinary configured")
+    else:
+        logger.warning("Cloudinary env not set. Upload endpoints will fail until configured.")
     initialize_firebase()
     await db.users.create_index("email", unique=True)
     default_admin = await db.users.find_one({"email": "admin@example.com", "role": "admin"})
