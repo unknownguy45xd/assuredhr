@@ -359,7 +359,7 @@ const Documents = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => window.open(doc.firebase_url, "_blank")}
+                          onClick={() => window.open(doc.cloudinary_url || doc.file_url, "_blank")}
                         >
                           View
                         </Button>

@@ -66,7 +66,12 @@ const EmployeeDocuments = () => {
     }
   };
 
-  const handleDownload = async (docId, fileName) => {
+  const handleDownload = async (docId, fileName, cloudinaryUrl) => {
+    if (cloudinaryUrl) {
+      window.open(cloudinaryUrl, "_blank");
+      return;
+    }
+
     const token = localStorage.getItem("employee_token");
     try {
       const response = await axios.get(`${API}/documents/${docId}/download`, {
@@ -148,7 +153,12 @@ const EmployeeDocuments = () => {
                     <TableCell className="capitalize">{doc.document_type.replace(/_/g, ' ')}</TableCell>
                     <TableCell>{new Date(doc.uploaded_at).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      <Button size="sm" variant="outline" onClick={() => handleDownload(doc.id, doc.file_name)} data-testid={`download-${doc.id}`}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDownload(doc.id, doc.file_name, doc.cloudinary_url)}
+                        data-testid={`download-${doc.id}`}
+                      >
                         <Download className="w-4 h-4 mr-1" />Download
                       </Button>
                     </TableCell>
