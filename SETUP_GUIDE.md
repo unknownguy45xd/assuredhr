@@ -1,67 +1,107 @@
-# Assured Security Services - Setup Guide (Cloudinary Edition)
+# AssuredHR Setup Guide (Mongo Atlas + Cloudinary + JWT)
 
-## Prerequisites
-- Python 3.11+
+This guide matches the rebuilt backend.
+
+## 1) Prerequisites
+
+- Python 3.10+
 - Node 18+
-- MongoDB
+- MongoDB Atlas cluster
+- Cloudinary account
 
-## Backend setup
+## 2) Backend structure
+
+```text
+backend/
+  server.py
+  db.py
+  auth.py
+  models.py
+```
+
+## 3) Backend environment
+
+Create `backend/.env` from example:
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+Fill values:
+
+```env
+MONGO_URL=mongodb+srv://<username>:<password>@<cluster-url>/<db>?retryWrites=true&w=majority
+DB_NAME=assuredhr
+
+JWT_SECRET_KEY=change-me-in-production
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_HOURS=24
+
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+```
+
+## 4) Install and run backend
+
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
-cp .env.example .env
+uvicorn server:app --reload --port 8001
 ```
 
-Update `backend/.env`:
-```env
-MONGO_URL=mongodb://localhost:27017
-DB_NAME=assured_security_db
-JWT_SECRET_KEY=change-me-in-production
-CORS_ORIGINS=http://localhost:3000
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
-```
+Backend will run at `http://127.0.0.1:8001`.
 
-Run backend:
+## 5) Create first admin user
+
+Register an admin once before login:
+
 ```bash
-uvicorn server:app --host 0.0.0.0 --port 8001 --reload
+curl -X POST http://127.0.0.1:8001/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@assured.com","password":"admin1234","full_name":"System Admin","role":"admin"}'
 ```
 
-## Frontend setup
+Then use the same credentials on the frontend login page.
+
+## 6) Frontend
+
 ```bash
 cd frontend
 cp .env.example .env
-yarn install
+# ensure REACT_APP_BACKEND_URL=http://localhost:8001
+npm install
+npm start
 ```
 
-Update `frontend/.env`:
-```env
-REACT_APP_BACKEND_URL=http://localhost:8001
-```
+## 7) Route compatibility
 
-Run frontend:
-```bash
-yarn start
-```
+Backend supports existing frontend route patterns:
 
-## Upload behavior
-- All uploads now use Cloudinary via backend upload endpoints:
-  - `POST /api/upload`
+- Auth: `/auth/login`, `/auth/register`, `/auth/me`
+- Main API prefix: `/api/...`
+- Guard / employee / attendance / leave / payroll / onboarding / recruitment routes
+- Document upload and verification:
   - `POST /api/documents/upload`
   - `POST /api/employee/documents/upload`
+  - `PUT /api/documents/{id}/verify`
 
-## Deploy
-- Backend start command:
+## 8) Quick smoke tests
+
 ```bash
-uvicorn server:app --host 0.0.0.0 --port ${PORT:-8001}
+curl http://127.0.0.1:8001/health
+
+curl -X POST http://127.0.0.1:8001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@assured.com","password":"admin1234"}'
 ```
-- Frontend build:
+
+Then pass returned token:
+
 ```bash
-yarn build
+-H "Authorization: Bearer <TOKEN>"
 ```
-- SPA routing configured with:
-  - `frontend/vercel.json`
-  - `frontend/public/_redirects`
