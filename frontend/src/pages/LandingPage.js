@@ -30,7 +30,7 @@ const LandingPage = () => {
             Welcome to PeopleHub
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Comprehensive HR management platform for modern organizations. Choose your portal to get started.
+            Comprehensive HR management platform for modern organizations. Use the administrator portal to get started.
           </p>
         </div>
 

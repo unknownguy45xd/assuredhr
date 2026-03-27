@@ -18,13 +18,6 @@ import PayrollEnhanced from "@/pages/PayrollEnhanced";
 import OnboardingEnhanced from "@/pages/OnboardingEnhanced";
 import AdminLogin from "@/pages/AdminLogin";
 import LandingPage from "@/pages/LandingPage";
-import EmployeePortal from "@/pages/EmployeePortal";
-import EmployeeDashboard from "@/pages/EmployeeDashboard";
-import EmployeeProfile from "@/pages/EmployeeProfile";
-import EmployeeAttendance from "@/pages/EmployeeAttendance";
-import EmployeeLeaves from "@/pages/EmployeeLeaves";
-import EmployeePayslips from "@/pages/EmployeePayslips";
-import EmployeeDocuments from "@/pages/EmployeeDocuments";
 import Guards from "@/pages/Guards";
 import GuardDetail from "@/pages/GuardDetail";
 import Clients from "@/pages/Clients";
@@ -246,6 +239,10 @@ function App() {
           <Route path="/login" element={<AdminLogin />} />
           <Route path="/signup" element={<Navigate to="/login" replace />} />
           
+          {/* Disabled legacy employee auth routes */}
+          <Route path="/employee/login" element={<Navigate to="/login" replace />} />
+          <Route path="/employee/signup" element={<Navigate to="/login" replace />} />
+          <Route path="/employee/*" element={<Navigate to="/login" replace />} />
           {/* Employee Portal Routes */}
           <Route path="/employee/login" element={<Navigate to="/login" replace />} />
           <Route path="/employee/signup" element={<Navigate to="/login" replace />} />

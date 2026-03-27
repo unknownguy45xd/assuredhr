@@ -322,6 +322,28 @@ async def root_current_admin(current_user: dict = Depends(get_current_user)):
     return await get_current_admin(current_user)
 
 
+@api_router.get("/admin/users")
+async def get_admin_users(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    primary_users = await db.users.find(
+        {"role": {"$in": ["admin", "hr", "supervisor", "field_officer", "accountant"]}},
+        {"_id": 0, "hashed_password": 0}
+    ).to_list(1000)
+
+    legacy_users = await db.admin_users.find({}, {"_id": 0, "hashed_password": 0}).to_list(1000)
+
+    # Merge by email/id to avoid duplicates when migration data exists in both collections
+    merged = {}
+    for user in primary_users + legacy_users:
+        key = user.get("email") or user.get("id")
+        if key:
+            merged[key] = user
+
+    return list(merged.values())
+
+
 @api_router.post("/upload")
 async def upload_file(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     try:
@@ -2217,10 +2239,13 @@ async def get_salary_summary(
 # Include the router in the main app
 app.include_router(api_router)
 
+cors_origins = [origin.strip() for origin in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",") if origin.strip()]
+allow_credentials = "*" not in cors_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_credentials=allow_credentials,
+    allow_origins=cors_origins if cors_origins else ["http://localhost:3000"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -2254,3 +2279,14 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "server:app",
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", "8001")),
+        reload=False,
+    )
