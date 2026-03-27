@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,10 +26,10 @@ const PayrollEnhanced = () => {
   const fetchData = async () => {
     try {
       const [salRes, loanRes, reimbRes, empRes] = await Promise.all([
-        axios.get(`${API}/salary-structures`),
-        axios.get(`${API}/loans`),
-        axios.get(`${API}/reimbursements`),
-        axios.get(`${API}/employees?status=active`)
+        apiClient.get(`${API}/salary-structures`),
+        apiClient.get(`${API}/loans`),
+        apiClient.get(`${API}/reimbursements`),
+        apiClient.get(`${API}/employees?status=active`)
       ]);
       setSalaryStructures(salRes.data);
       setLoans(loanRes.data);
@@ -49,7 +49,7 @@ const PayrollEnhanced = () => {
 
   const approveReimbursement = async (reimbId) => {
     try {
-      await axios.put(`${API}/reimbursements/${reimbId}/approve?approved_by=HR Manager`);
+      await apiClient.put(`${API}/reimbursements/${reimbId}/approve?approved_by=HR Manager`);
       toast.success("Reimbursement approved");
       fetchData();
     } catch (error) {

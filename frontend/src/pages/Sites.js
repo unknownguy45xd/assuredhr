@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { MapPin, Plus, Search, Edit, Building2, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,7 @@ const Sites = () => {
   const fetchSites = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/sites`, {
+      const response = await apiClient.get(`${API}/sites`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSites(response.data);
@@ -58,7 +58,7 @@ const Sites = () => {
   const fetchClients = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/clients`, {
+      const response = await apiClient.get(`${API}/clients`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setClients(response.data);
@@ -70,7 +70,7 @@ const Sites = () => {
   const fetchFieldOfficers = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/field-officers`, {
+      const response = await apiClient.get(`${API}/field-officers`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setFieldOfficers(response.data);
@@ -94,7 +94,7 @@ const Sites = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("admin_token");
-      await axios.post(`${API}/sites`, formData, {
+      await apiClient.post(`${API}/sites`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success("Site added successfully");
@@ -111,7 +111,7 @@ const Sites = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("admin_token");
-      await axios.put(`${API}/sites/${selectedSite.id}`, formData, {
+      await apiClient.put(`${API}/sites/${selectedSite.id}`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success("Site updated successfully");

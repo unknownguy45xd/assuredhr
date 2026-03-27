@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,8 +33,8 @@ const Performance = () => {
   const fetchData = async () => {
     try {
       const [reviewsRes, employeesRes] = await Promise.all([
-        axios.get(`${API}/performance-reviews`),
-        axios.get(`${API}/employees?status=active`)
+        apiClient.get(`${API}/performance-reviews`),
+        apiClient.get(`${API}/employees?status=active`)
       ]);
       setReviews(reviewsRes.data);
       setEmployees(employeesRes.data);
@@ -49,7 +49,7 @@ const Performance = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/performance-reviews`, {
+      await apiClient.post(`${API}/performance-reviews`, {
         ...formData,
         rating: parseFloat(formData.rating)
       });
