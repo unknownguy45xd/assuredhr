@@ -31,6 +31,10 @@ const attachAuthHeader = (config = {}) => {
   const nextConfig = { ...config, headers: { ...headers, Authorization: `Bearer ${token}` } };
   console.log("HEADERS:", nextConfig.headers);
   return nextConfig;
+    return { ...config, headers };
+  }
+
+  return { ...config, headers: { ...headers, Authorization: `Bearer ${token}` } };
 };
 
 export const setupAxiosAuthInterceptor = () => {

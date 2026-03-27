@@ -66,6 +66,7 @@ const EmployeeDocuments = () => {
       return;
     }
 
+    const token = localStorage.getItem("employee_token");
     try {
       const response = await apiClient.get(`/documents/${docId}/download`, {
         responseType: 'blob'
