@@ -24,6 +24,7 @@ import Clients from "@/pages/Clients";
 import Sites from "@/pages/Sites";
 import Documents from "@/pages/Documents";
 import FieldOfficers from "@/pages/FieldOfficers";
+import { setupAxiosAuthInterceptor } from "@/lib/api";
 import { 
   LayoutDashboard, 
   Users, 
@@ -44,6 +45,7 @@ import {
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+setupAxiosAuthInterceptor();
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();

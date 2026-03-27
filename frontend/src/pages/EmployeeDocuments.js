@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import { API, toast } from "@/App";
+import { toast } from "@/App";
+import { apiClient } from "@/lib/api";
+import { getErrorMessage } from "@/lib/formatters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -25,15 +26,12 @@ const EmployeeDocuments = () => {
   }, []);
 
   const fetchDocuments = async () => {
-    const token = localStorage.getItem("employee_token");
     try {
-      const response = await axios.get(`${API}/employee/documents`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await apiClient.get("/employee/documents");
       setDocuments(response.data);
     } catch (error) {
       if (error.response?.status === 401) navigate("/employee/login");
-      toast.error("Failed to load documents");
+      toast.error(getErrorMessage(error, "Failed to load documents"));
     } finally {
       setLoading(false);
     }
@@ -44,23 +42,19 @@ const EmployeeDocuments = () => {
     if (!selectedFile) return;
 
     setUploading(true);
-    const token = localStorage.getItem("employee_token");
     const formData = new FormData();
     formData.append("file", selectedFile);
 
     try {
-      await axios.post(`${API}/employee/documents/upload?document_type=${documentType}`, formData, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data"
-        }
+      await apiClient.post("/employee/documents/upload", formData, {
+        params: { document_type: documentType },
       });
       toast.success("Document uploaded successfully");
       setIsDialogOpen(false);
       setSelectedFile(null);
       fetchDocuments();
     } catch (error) {
-      toast.error("Failed to upload document");
+      toast.error(getErrorMessage(error, "Failed to upload document"));
     } finally {
       setUploading(false);
     }
@@ -74,8 +68,7 @@ const EmployeeDocuments = () => {
 
     const token = localStorage.getItem("employee_token");
     try {
-      const response = await axios.get(`${API}/documents/${docId}/download`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await apiClient.get(`/documents/${docId}/download`, {
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -86,7 +79,7 @@ const EmployeeDocuments = () => {
       link.click();
       link.remove();
     } catch (error) {
-      toast.error("Failed to download document");
+      toast.error(getErrorMessage(error, "Failed to download document"));
     }
   };
 

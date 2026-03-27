@@ -1851,6 +1851,8 @@ async def upload_document(
         
         return document
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Document upload failed: {str(e)}")
 
