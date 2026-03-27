@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { API, toast } from "@/App";
+import { getErrorMessage } from "@/lib/formatters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -72,7 +73,25 @@ const Attendance = () => {
       fetchData();
     } catch (error) {
       console.error("Error creating attendance:", error);
-      toast.error("Failed to record attendance");
+      toast.error(getErrorMessage(error, "Failed to record attendance"));
+    }
+  };
+
+  const handleQuickMarkPresent = async (employeeId) => {
+    try {
+      const now = new Date();
+      const checkIn = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      await axios.post(`${API}/attendance`, {
+        employee_id: employeeId,
+        date: new Date().toISOString().split("T")[0],
+        check_in: checkIn,
+        status: "present",
+        notes: "Quick marked from dashboard"
+      });
+      toast.success("Attendance marked");
+      fetchData();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to mark attendance"));
     }
   };
 
@@ -281,6 +300,28 @@ const Attendance = () => {
           </DialogContent>
         </Dialog>
       </div>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Quick Mark Attendance (Present)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {employees.slice(0, 9).map((emp) => (
+              <Button
+                key={emp.id}
+                variant="outline"
+                className="justify-between"
+                onClick={() => handleQuickMarkPresent(emp.id)}
+                data-testid={`quick-mark-${emp.id}`}
+              >
+                <span className="truncate">{emp.first_name} {emp.last_name}</span>
+                <span className="text-green-600 font-semibold">Present</span>
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Filters Section */}
       <div className="mb-6 bg-gray-50 p-4 rounded-lg space-y-4">
