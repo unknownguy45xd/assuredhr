@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { API, toast } from "@/App";
+import { formatINR, getErrorMessage } from "@/lib/formatters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -84,7 +85,7 @@ const Payroll = () => {
       fetchData();
     } catch (error) {
       console.error("Error creating payroll record:", error);
-      toast.error("Failed to create payroll record");
+      toast.error(getErrorMessage(error, "Failed to create payroll record"));
     }
   };
 
@@ -202,7 +203,7 @@ const Payroll = () => {
               <div className="p-4 bg-blue-50 rounded-lg">
                 <Label className="text-sm text-gray-600">Net Salary (Calculated)</Label>
                 <p className="text-2xl font-bold text-blue-900" data-testid="net-salary-display">
-                  ${parseFloat(formData.net_salary || 0).toLocaleString()}
+                  {formatINR(formData.net_salary || 0)}
                 </p>
               </div>
 
@@ -252,7 +253,7 @@ const Payroll = () => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-gray-900" data-testid="total-payroll-value">
-              ${totalPayroll.toLocaleString()}
+              {formatINR(totalPayroll)}
             </div>
           </CardContent>
         </Card>
@@ -264,7 +265,7 @@ const Payroll = () => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-900" data-testid="paid-amount-value">
-              ${paidAmount.toLocaleString()}
+              {formatINR(paidAmount)}
             </div>
           </CardContent>
         </Card>
@@ -276,7 +277,7 @@ const Payroll = () => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-amber-900" data-testid="pending-amount-value">
-              ${pendingAmount.toLocaleString()}
+              {formatINR(pendingAmount)}
             </div>
           </CardContent>
         </Card>
@@ -313,11 +314,11 @@ const Payroll = () => {
                   <TableRow key={record.id} data-testid={`payroll-row-${record.id}`}>
                     <TableCell className="font-medium">{getEmployeeName(record.employee_id)}</TableCell>
                     <TableCell>{record.month}</TableCell>
-                    <TableCell>${record.basic_salary.toLocaleString()}</TableCell>
-                    <TableCell>${record.allowances.toLocaleString()}</TableCell>
-                    <TableCell>${record.deductions.toLocaleString()}</TableCell>
-                    <TableCell>${record.tax.toLocaleString()}</TableCell>
-                    <TableCell className="font-bold">${record.net_salary.toLocaleString()}</TableCell>
+                    <TableCell>{formatINR(record.basic_salary)}</TableCell>
+                    <TableCell>{formatINR(record.allowances)}</TableCell>
+                    <TableCell>{formatINR(record.deductions)}</TableCell>
+                    <TableCell>{formatINR(record.tax)}</TableCell>
+                    <TableCell className="font-bold">{formatINR(record.net_salary)}</TableCell>
                     <TableCell>{record.payment_date}</TableCell>
                     <TableCell>
                       <span className={`status-badge ${

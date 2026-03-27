@@ -262,8 +262,8 @@ class DocumentCreate(BaseModel):
     guard_id: str
     document_type: str  # aadhaar, pan, police_verification, security_license, medical_certificate, training_certificate
     file_name: str
-    firebase_url: str
-    firebase_path: str  # Full path in Firebase Storage
+    cloudinary_url: str
+    cloudinary_public_id: str
     expiry_date: Optional[str] = None
     verification_status: str = "pending"  # pending, verified, rejected
     uploaded_by: str  # User ID who uploaded

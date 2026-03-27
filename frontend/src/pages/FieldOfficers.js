@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { API, toast } from "@/App";
+import { getErrorMessage } from "@/lib/formatters";
 import { UserCog, Plus, Search, Edit, Shield, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -116,7 +117,7 @@ const FieldOfficers = () => {
       fetchFieldOfficers();
     } catch (error) {
       console.error("Error adding field officer:", error);
-      toast.error(error.response?.data?.detail || "Failed to add field officer");
+      toast.error(getErrorMessage(error, "Failed to add field officer"));
     }
   };
 

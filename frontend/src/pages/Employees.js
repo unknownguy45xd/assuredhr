@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { API, toast } from "@/App";
+import { getErrorMessage } from "@/lib/formatters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -205,7 +206,7 @@ const Employees = () => {
       fetchEmployees();
     } catch (error) {
       console.error("Error importing employees:", error);
-      toast.error(error.response?.data?.detail || "Failed to import employees");
+      toast.error(getErrorMessage(error, "Failed to import employees"));
     }
   };
 

@@ -16,18 +16,8 @@ import Performance from "@/pages/Performance";
 import OrgStructure from "@/pages/OrgStructure";
 import PayrollEnhanced from "@/pages/PayrollEnhanced";
 import OnboardingEnhanced from "@/pages/OnboardingEnhanced";
-import EmployeeLogin from "@/pages/EmployeeLogin";
 import AdminLogin from "@/pages/AdminLogin";
-import AdminSignup from "@/pages/AdminSignup";
-import EmployeeSignup from "@/pages/EmployeeSignup";
 import LandingPage from "@/pages/LandingPage";
-import EmployeePortal from "@/pages/EmployeePortal";
-import EmployeeDashboard from "@/pages/EmployeeDashboard";
-import EmployeeProfile from "@/pages/EmployeeProfile";
-import EmployeeAttendance from "@/pages/EmployeeAttendance";
-import EmployeeLeaves from "@/pages/EmployeeLeaves";
-import EmployeePayslips from "@/pages/EmployeePayslips";
-import EmployeeDocuments from "@/pages/EmployeeDocuments";
 import Guards from "@/pages/Guards";
 import GuardDetail from "@/pages/GuardDetail";
 import Clients from "@/pages/Clients";
@@ -64,25 +54,48 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     setUserRole(role);
   }, []);
 
-  const menuItems = [
-    { path: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["admin", "hr", "supervisor", "field_officer", "accountant"] },
-    { path: "/guards", icon: Shield, label: "Guards", roles: ["admin", "hr", "supervisor", "field_officer"] },
-    { path: "/clients", icon: Building2, label: "Clients", roles: ["admin", "hr"] },
-    { path: "/sites", icon: MapPin, label: "Sites", roles: ["admin", "hr", "supervisor", "field_officer"] },
-    { path: "/documents", icon: FileText, label: "Documents", roles: ["admin", "hr", "supervisor", "field_officer"] },
-    { path: "/field-officers", icon: UserCog, label: "Field Officers", roles: ["admin", "hr"] },
-    { path: "/employees", icon: Users, label: "Employees", roles: ["admin", "hr"] },
-    { path: "/org-structure", icon: Briefcase, label: "Org Structure", roles: ["admin", "hr"] },
-    { path: "/attendance", icon: Clock, label: "Attendance", roles: ["admin", "hr", "supervisor", "field_officer"] },
-    { path: "/leaves", icon: Calendar, label: "Leave Management", roles: ["admin", "hr"] },
-    { path: "/recruitment", icon: Briefcase, label: "Recruitment", roles: ["admin", "hr"] },
-    { path: "/onboarding-enhanced", icon: ClipboardCheck, label: "Onboarding+", roles: ["admin", "hr"] },
-    { path: "/payroll-enhanced", icon: DollarSign, label: "Payroll+", roles: ["admin", "accountant"] },
-    { path: "/performance", icon: TrendingUp, label: "Performance", roles: ["admin", "hr"] },
+  const menuSections = [
+    {
+      title: "Main",
+      items: [
+        { path: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["admin", "hr", "supervisor", "field_officer", "accountant"] },
+      ],
+    },
+    {
+      title: "Staff",
+      items: [
+        { path: "/guards", icon: Shield, label: "Guards", roles: ["admin", "hr", "supervisor", "field_officer"] },
+        { path: "/employees", icon: Users, label: "Employees", roles: ["admin", "hr"] },
+        { path: "/field-officers", icon: UserCog, label: "Field Officers", roles: ["admin", "hr"] },
+      ],
+    },
+    {
+      title: "Operations",
+      items: [
+        { path: "/attendance", icon: Clock, label: "Attendance", roles: ["admin", "hr", "supervisor", "field_officer"] },
+        { path: "/leaves", icon: Calendar, label: "Leave Management", roles: ["admin", "hr"] },
+        { path: "/documents", icon: FileText, label: "Documents", roles: ["admin", "hr", "supervisor", "field_officer"] },
+        { path: "/sites", icon: MapPin, label: "Sites", roles: ["admin", "hr", "supervisor", "field_officer"] },
+        { path: "/clients", icon: Building2, label: "Clients", roles: ["admin", "hr"] },
+      ],
+    },
+    {
+      title: "Finance",
+      items: [
+        { path: "/payroll", icon: DollarSign, label: "Payroll", roles: ["admin", "accountant"] },
+        { path: "/payroll-enhanced", icon: DollarSign, label: "Payroll+", roles: ["admin", "accountant"] },
+      ],
+    },
+    {
+      title: "Settings",
+      items: [
+        { path: "/org-structure", icon: Briefcase, label: "Org Structure", roles: ["admin", "hr"] },
+        { path: "/recruitment", icon: Briefcase, label: "Recruitment", roles: ["admin", "hr"] },
+        { path: "/onboarding-enhanced", icon: ClipboardCheck, label: "Onboarding+", roles: ["admin", "hr"] },
+        { path: "/performance", icon: TrendingUp, label: "Performance", roles: ["admin", "hr"] },
+      ],
+    },
   ];
-
-  // Filter menu items based on user role
-  const filteredMenuItems = menuItems.filter(item => item.roles.includes(userRole));
 
   return (
     <>
@@ -125,27 +138,41 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-4">
             <ul className="space-y-1">
-              {filteredMenuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.path;
+              {menuSections.map((section) => {
+                const visibleItems = section.items.filter(item => item.roles.includes(userRole));
+                if (visibleItems.length === 0) return null;
+
                 return (
-                  <li key={item.path}>
-                    <Link
-                      to={item.path}
-                      onClick={() => setIsOpen(false)}
-                      className={`
-                        flex items-center gap-3 px-4 py-3 rounded-lg
-                        transition-colors duration-200
-                        ${isActive 
-                          ? 'bg-blue-50 text-blue-700 font-medium' 
-                          : 'text-gray-700 hover:bg-gray-50'
-                        }
-                      `}
-                      data-testid={`nav-${item.label.toLowerCase().replace(/ /g, '-')}`}
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span>{item.label}</span>
-                    </Link>
+                  <li key={section.title} className="pt-3 first:pt-0">
+                    <p className="px-4 pb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      {section.title}
+                    </p>
+                    <ul className="space-y-1">
+                      {visibleItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = location.pathname === item.path;
+                        return (
+                          <li key={item.path}>
+                            <Link
+                              to={item.path}
+                              onClick={() => setIsOpen(false)}
+                              className={`
+                                flex items-center gap-3 px-4 py-3 rounded-lg
+                                transition-colors duration-200
+                                ${isActive
+                                  ? 'bg-blue-50 text-blue-700 font-medium'
+                                  : 'text-gray-700 hover:bg-gray-50'
+                                }
+                              `}
+                              data-testid={`nav-${item.label.toLowerCase().replace(/ /g, '-')}`}
+                            >
+                              <Icon className="w-5 h-5" />
+                              <span>{item.label}</span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </li>
                 );
               })}
@@ -247,20 +274,12 @@ function App() {
           
           {/* Admin Login & Signup */}
           <Route path="/login" element={<AdminLogin />} />
-          <Route path="/signup" element={<AdminSignup />} />
+          <Route path="/signup" element={<Navigate to="/login" replace />} />
           
-          {/* Employee Portal Routes */}
-          <Route path="/employee/login" element={<EmployeeLogin />} />
-          <Route path="/employee/signup" element={<EmployeeSignup />} />
-          <Route path="/employee" element={<EmployeePortal />}>
-            <Route index element={<Navigate to="/employee/dashboard" replace />} />
-            <Route path="dashboard" element={<EmployeeDashboard />} />
-            <Route path="profile" element={<EmployeeProfile />} />
-            <Route path="attendance" element={<EmployeeAttendance />} />
-            <Route path="leaves" element={<EmployeeLeaves />} />
-            <Route path="payslips" element={<EmployeePayslips />} />
-            <Route path="documents" element={<EmployeeDocuments />} />
-          </Route>
+          {/* Disabled legacy employee auth routes */}
+          <Route path="/employee/login" element={<Navigate to="/login" replace />} />
+          <Route path="/employee/signup" element={<Navigate to="/login" replace />} />
+          <Route path="/employee/*" element={<Navigate to="/login" replace />} />
 
           {/* HR Portal Routes (Protected) */}
           <Route path="/" element={<ProtectedAdminRoute><Layout><Dashboard /></Layout></ProtectedAdminRoute>} />
