@@ -82,6 +82,7 @@ const Attendance = () => {
       const now = new Date();
       const checkIn = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
       await apiClient.post(`${API}/attendance`, {
+      await axios.post(`${API}/attendance`, {
         employee_id: employeeId,
         date: new Date().toISOString().split("T")[0],
         check_in: checkIn,
