@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ const EmployeeDetail = () => {
 
   const fetchEmployeeDetails = async () => {
     try {
-      const response = await axios.get(`${API}/employees/${id}`);
+      const response = await apiClient.get(`${API}/employees/${id}`);
       setEmployee(response.data);
     } catch (error) {
       console.error("Error fetching employee details:", error);
@@ -145,7 +145,7 @@ const EmployeeDetail = () => {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`${API}/employees/${id}`, {
+      await apiClient.put(`${API}/employees/${id}`, {
         ...editFormData,
         salary: parseFloat(editFormData.salary)
       });

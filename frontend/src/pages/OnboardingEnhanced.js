@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -32,11 +32,11 @@ const OnboardingEnhanced = () => {
   const fetchData = async () => {
     try {
       const [tmpRes, eqRes, trnRes, probRes, empRes] = await Promise.all([
-        axios.get(`${API}/onboarding-templates`),
-        axios.get(`${API}/equipment-assignments`),
-        axios.get(`${API}/training-assignments`),
-        axios.get(`${API}/probation-reviews`),
-        axios.get(`${API}/employees?status=active`)
+        apiClient.get(`${API}/onboarding-templates`),
+        apiClient.get(`${API}/equipment-assignments`),
+        apiClient.get(`${API}/training-assignments`),
+        apiClient.get(`${API}/probation-reviews`),
+        apiClient.get(`${API}/employees?status=active`)
       ]);
       setTemplates(tmpRes.data);
       setEquipment(eqRes.data);

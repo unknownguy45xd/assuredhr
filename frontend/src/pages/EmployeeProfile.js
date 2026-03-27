@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ const EmployeeProfile = () => {
   const fetchProfile = async () => {
     const token = localStorage.getItem("employee_token");
     try {
-      const response = await axios.get(`${API}/employee/profile`, {
+      const response = await apiClient.get(`${API}/employee/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setEmployee(response.data);
@@ -51,7 +51,7 @@ const EmployeeProfile = () => {
   const handleUpdate = async () => {
     const token = localStorage.getItem("employee_token");
     try {
-      const response = await axios.put(`${API}/employee/profile`, formData, {
+      const response = await apiClient.put(`${API}/employee/profile`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setEmployee(response.data);

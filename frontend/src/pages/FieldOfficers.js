@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
+import { getErrorMessage } from "@/lib/formatters";
 import { UserCog, Plus, Search, Edit, Shield, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +44,7 @@ const FieldOfficers = () => {
   const fetchFieldOfficers = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/field-officers`, {
+      const response = await apiClient.get(`${API}/field-officers`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setFieldOfficers(response.data);
@@ -58,7 +59,7 @@ const FieldOfficers = () => {
   const fetchGuards = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/guards`, {
+      const response = await apiClient.get(`${API}/guards`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setGuards(response.data);
@@ -70,7 +71,7 @@ const FieldOfficers = () => {
   const fetchSites = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/sites`, {
+      const response = await apiClient.get(`${API}/sites`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSites(response.data);
@@ -82,7 +83,7 @@ const FieldOfficers = () => {
   const fetchAdminUsers = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/admin/users`, {
+      const response = await apiClient.get(`${API}/admin/users`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAdminUsers(response.data.filter(u => u.role !== "field_officer"));
@@ -107,7 +108,7 @@ const FieldOfficers = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("admin_token");
-      await axios.post(`${API}/field-officers`, formData, {
+      await apiClient.post(`${API}/field-officers`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success("Field officer added successfully");
@@ -116,7 +117,7 @@ const FieldOfficers = () => {
       fetchFieldOfficers();
     } catch (error) {
       console.error("Error adding field officer:", error);
-      toast.error(error.response?.data?.detail || "Failed to add field officer");
+      toast.error(getErrorMessage(error, "Failed to add field officer"));
     }
   };
 
@@ -124,7 +125,7 @@ const FieldOfficers = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("admin_token");
-      await axios.put(`${API}/field-officers/${selectedOfficer.id}`, formData, {
+      await apiClient.put(`${API}/field-officers/${selectedOfficer.id}`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success("Field officer updated successfully");

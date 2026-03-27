@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
+import { getErrorMessage } from "@/lib/formatters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -46,7 +47,7 @@ const Employees = () => {
   const fetchEmployees = async () => {
     try {
       const statusParam = statusFilter === "all" ? "" : `?status=${statusFilter}`;
-      const response = await axios.get(`${API}/employees${statusParam}`);
+      const response = await apiClient.get(`${API}/employees${statusParam}`);
       setEmployees(response.data);
     } catch (error) {
       console.error("Error fetching employees:", error);
@@ -63,7 +64,7 @@ const Employees = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/employees`, {
+      await apiClient.post(`${API}/employees`, {
         ...formData,
         salary: parseFloat(formData.salary)
       });
@@ -198,14 +199,14 @@ const Employees = () => {
 
   const handleConfirmImport = async () => {
     try {
-      const response = await axios.post(`${API}/employees/bulk`, { employees: csvData });
+      const response = await apiClient.post(`${API}/employees/bulk`, { employees: csvData });
       toast.success(`Successfully added ${response.data.added} employees`);
       setCsvData([]);
       setActiveTab("all");
       fetchEmployees();
     } catch (error) {
       console.error("Error importing employees:", error);
-      toast.error(error.response?.data?.detail || "Failed to import employees");
+      toast.error(getErrorMessage(error, "Failed to import employees"));
     }
   };
 

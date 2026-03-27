@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,8 +35,8 @@ const OrgStructure = () => {
   const fetchData = async () => {
     try {
       const [deptRes, locRes] = await Promise.all([
-        axios.get(`${API}/departments`),
-        axios.get(`${API}/locations`)
+        apiClient.get(`${API}/departments`),
+        apiClient.get(`${API}/locations`)
       ]);
       setDepartments(deptRes.data);
       setLocations(locRes.data);
@@ -50,7 +50,7 @@ const OrgStructure = () => {
   const handleCreateDept = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/departments`, deptForm);
+      await apiClient.post(`${API}/departments`, deptForm);
       toast.success("Department created");
       setIsDeptDialogOpen(false);
       setDeptForm({ name: "", code: "", description: "", cost_center: "" });
@@ -63,7 +63,7 @@ const OrgStructure = () => {
   const handleCreateLoc = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/locations`, locForm);
+      await apiClient.post(`${API}/locations`, locForm);
       toast.success("Location created");
       setIsLocDialogOpen(false);
       setLocForm({ name: "", code: "", address: "", city: "", state: "", country: "USA", is_head_office: false });

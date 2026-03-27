@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,8 +57,8 @@ const Recruitment = () => {
   const fetchData = async () => {
     try {
       const [jobsRes, candidatesRes] = await Promise.all([
-        axios.get(`${API}/job-postings`),
-        axios.get(`${API}/candidates`)
+        apiClient.get(`${API}/job-postings`),
+        apiClient.get(`${API}/candidates`)
       ]);
       setJobs(jobsRes.data);
       setCandidates(candidatesRes.data);
@@ -75,11 +75,11 @@ const Recruitment = () => {
     try {
       if (editingJob) {
         // Update existing job
-        await axios.put(`${API}/job-postings/${editingJob.id}`, jobFormData);
+        await apiClient.put(`${API}/job-postings/${editingJob.id}`, jobFormData);
         toast.success("Job posting updated successfully");
       } else {
         // Create new job
-        await axios.post(`${API}/job-postings`, jobFormData);
+        await apiClient.post(`${API}/job-postings`, jobFormData);
         toast.success("Job posting created successfully");
       }
       
@@ -123,7 +123,7 @@ const Recruitment = () => {
     }
     
     try {
-      await axios.delete(`${API}/job-postings/${jobId}`);
+      await apiClient.delete(`${API}/job-postings/${jobId}`);
       toast.success("Job posting deleted successfully");
       fetchData();
     } catch (error) {
@@ -134,7 +134,7 @@ const Recruitment = () => {
 
   const handleStatusChange = async (jobId, newStatus) => {
     try {
-      await axios.put(`${API}/job-postings/${jobId}/status`, {
+      await apiClient.put(`${API}/job-postings/${jobId}/status`, {
         status: newStatus
       });
       toast.success(`Job posting ${newStatus === 'open' ? 'reopened' : newStatus} successfully`);
@@ -156,7 +156,7 @@ const Recruitment = () => {
   const handleCandidateSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/candidates`, {
+      await apiClient.post(`${API}/candidates`, {
         ...candidateFormData,
         experience_years: parseFloat(candidateFormData.experience_years),
         expected_salary: parseFloat(candidateFormData.expected_salary)
@@ -181,7 +181,7 @@ const Recruitment = () => {
 
   const handleStageUpdate = async (candidateId, newStage) => {
     try {
-      await axios.put(`${API}/candidates/${candidateId}/stage`, {
+      await apiClient.put(`${API}/candidates/${candidateId}/stage`, {
         stage: newStage
       });
       toast.success("Candidate stage updated");
