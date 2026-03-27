@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,7 +18,7 @@ const EmployeeAttendance = () => {
   const fetchAttendance = async () => {
     const token = localStorage.getItem("employee_token");
     try {
-      const response = await axios.get(`${API}/employee/attendance`, {
+      const response = await apiClient.get(`${API}/employee/attendance`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAttendance(response.data);

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
-import { API, toast } from "@/App";
+import { toast } from "@/App";
+import { apiClient } from "@/lib/api";
+import { getErrorMessage } from "@/lib/formatters";
 import { useParams, useNavigate } from "react-router-dom";
 import { Shield, ArrowLeft, Edit, Upload, CheckCircle, XCircle, Clock, FileText, Calendar, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,10 +44,7 @@ const GuardDetail = () => {
 
   const fetchGuardDetails = async () => {
     try {
-      const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/guards/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await apiClient.get(`/guards/${id}`);
       setGuard(response.data);
       setEditData(response.data);
       setLoading(false);
@@ -59,10 +57,7 @@ const GuardDetail = () => {
 
   const fetchDocuments = async () => {
     try {
-      const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/documents/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await apiClient.get(`/documents/${id}`);
       setDocuments(response.data);
     } catch (error) {
       console.error("Error fetching documents:", error);
@@ -71,10 +66,7 @@ const GuardDetail = () => {
 
   const fetchSites = async () => {
     try {
-      const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/sites`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await apiClient.get("/sites");
       setSites(response.data);
     } catch (error) {
       console.error("Error fetching sites:", error);
@@ -83,10 +75,7 @@ const GuardDetail = () => {
 
   const fetchFieldOfficers = async () => {
     try {
-      const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/field-officers`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await apiClient.get("/field-officers");
       setFieldOfficers(response.data);
     } catch (error) {
       console.error("Error fetching field officers:", error);
@@ -95,7 +84,6 @@ const GuardDetail = () => {
 
   const fetchAttendanceData = async () => {
     try {
-      const token = localStorage.getItem("admin_token");
       // Generate sample attendance data for current month
       const today = new Date();
       const currentMonth = today.getMonth();
@@ -154,10 +142,7 @@ const GuardDetail = () => {
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem("admin_token");
-      await axios.put(`${API}/guards/${id}`, editData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await apiClient.put(`/guards/${id}`, editData);
       toast.success("Guard updated successfully");
       setShowEditDialog(false);
       fetchGuardDetails();
@@ -175,19 +160,15 @@ const GuardDetail = () => {
     }
 
     try {
-      const token = localStorage.getItem("admin_token");
       const formData = new FormData();
       formData.append("file", uploadFile);
-      formData.append("guard_id", id);
-      formData.append("document_type", uploadData.document_type);
-      if (uploadData.expiry_date) formData.append("expiry_date", uploadData.expiry_date);
-      if (uploadData.notes) formData.append("notes", uploadData.notes);
-
-      await axios.post(`${API}/documents/upload`, formData, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data"
-        }
+      await apiClient.post("/documents/upload", formData, {
+        params: {
+          guard_id: id,
+          document_type: uploadData.document_type,
+          ...(uploadData.expiry_date ? { expiry_date: uploadData.expiry_date } : {}),
+          ...(uploadData.notes ? { notes: uploadData.notes } : {}),
+        },
       });
       
       toast.success("Document uploaded successfully");
@@ -197,22 +178,20 @@ const GuardDetail = () => {
       fetchDocuments();
     } catch (error) {
       console.error("Error uploading document:", error);
-      toast.error(error.response?.data?.detail || "Failed to upload document");
+      toast.error(getErrorMessage(error, "Failed to upload document"));
     }
   };
 
   const handleVerifyDocument = async (docId, status) => {
     try {
-      const token = localStorage.getItem("admin_token");
-      await axios.put(`${API}/documents/${docId}/verify`, 
-        { verification_status: status },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await apiClient.put(`/documents/${docId}/verify`, {
+        verification_status: status,
+      });
       toast.success(`Document ${status} successfully`);
       fetchDocuments();
     } catch (error) {
       console.error("Error verifying document:", error);
-      toast.error("Failed to verify document");
+      toast.error(getErrorMessage(error, "Failed to verify document"));
     }
   };
 
@@ -461,7 +440,7 @@ const GuardDetail = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => window.open(doc.firebase_url, "_blank")}
+                          onClick={() => window.open(doc.cloudinary_url || doc.file_url, "_blank")}
                         >
                           View
                         </Button>

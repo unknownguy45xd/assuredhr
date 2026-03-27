@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { API, toast } from "@/App";
+import { toast } from "@/App";
+import { getErrorMessage } from "@/lib/formatters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Users, Lock, Mail, Eye, EyeOff, Shield } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, Shield } from "lucide-react";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
+  const backendUrl = process.env.REACT_APP_BACKEND_URL;
   const [formData, setFormData] = useState({
     email: "",
     password: ""
@@ -22,11 +24,10 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API}/auth/login`, formData);
-      const { token, user, role } = response.data;
+      const response = await axios.post(`${backendUrl}/auth/login`, formData);
+      const { access_token, token, user, role } = response.data;
       
-      // Allow admin, field_officer, hr, supervisor, accountant roles
-      const allowedRoles = ["admin", "field_officer", "hr", "supervisor", "accountant"];
+      const allowedRoles = ["admin"];
       if (!allowedRoles.includes(role)) {
         toast.error("Access denied. Admin credentials required.");
         setLoading(false);
@@ -34,7 +35,7 @@ const AdminLogin = () => {
       }
       
       // Store token, user data, and role
-      localStorage.setItem("admin_token", token);
+      localStorage.setItem("admin_token", access_token || token);
       localStorage.setItem("admin_data", JSON.stringify(user));
       localStorage.setItem("user_role", role);
       
@@ -42,7 +43,7 @@ const AdminLogin = () => {
       navigate("/");
     } catch (error) {
       console.error("Login error:", error);
-      toast.error(error.response?.data?.detail || "Login failed. Please check your credentials.");
+      toast.error(getErrorMessage(error, "Login failed. Please check your credentials."));
     } finally {
       setLoading(false);
     }
@@ -115,31 +116,8 @@ const AdminLogin = () => {
               </Button>
             </form>
 
-            <div className="mt-6 pt-6 border-t border-gray-200 space-y-3">
-              <div className="text-center text-sm text-gray-600">
-                Don't have an account?{" "}
-                <button
-                  onClick={() => navigate("/signup")}
-                  className="text-indigo-600 hover:text-indigo-700 font-medium"
-                >
-                  Sign Up
-                </button>
-              </div>
-              <button
-                onClick={() => navigate("/employee/login")}
-                className="w-full text-sm text-gray-600 hover:text-gray-900 flex items-center justify-center gap-2"
-              >
-                <Users className="w-4 h-4" />
-                Employee Portal →
-              </button>
-            </div>
           </CardContent>
         </Card>
-
-        <div className="mt-6 text-center text-sm text-gray-600 bg-white p-4 rounded-lg shadow">
-          <p className="font-semibold mb-2">Demo Admin Credentials:</p>
-          <p className="font-mono text-xs">admin@test.com / admin123</p>
-        </div>
       </div>
     </div>
   );

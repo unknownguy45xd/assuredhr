@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,8 +30,8 @@ const Onboarding = () => {
   const fetchData = async () => {
     try {
       const [tasksRes, employeesRes] = await Promise.all([
-        axios.get(`${API}/onboarding-tasks`),
-        axios.get(`${API}/employees?status=active`)
+        apiClient.get(`${API}/onboarding-tasks`),
+        apiClient.get(`${API}/employees?status=active`)
       ]);
       setTasks(tasksRes.data);
       setEmployees(employeesRes.data);
@@ -46,7 +46,7 @@ const Onboarding = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/onboarding-tasks`, formData);
+      await apiClient.post(`${API}/onboarding-tasks`, formData);
       toast.success("Onboarding task created successfully");
       setIsDialogOpen(false);
       setFormData({
@@ -65,7 +65,7 @@ const Onboarding = () => {
 
   const handleStatusUpdate = async (taskId, newStatus) => {
     try {
-      await axios.put(`${API}/onboarding-tasks/${taskId}/status`, {
+      await apiClient.put(`${API}/onboarding-tasks/${taskId}/status`, {
         status: newStatus
       });
       toast.success("Task status updated");

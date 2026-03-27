@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import { API, toast } from "@/App";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,7 +94,7 @@ const Dashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`${API}/dashboard/stats`);
+      const response = await apiClient.get(`${API}/dashboard/stats`);
       setStats(response.data);
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -113,7 +113,7 @@ const Dashboard = () => {
         url += `&start_date=${customStartDate}&end_date=${customEndDate}`;
       }
       
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       setTrends(response.data.trends);
       setChanges(response.data.changes);
       
@@ -382,25 +382,25 @@ const Dashboard = () => {
           <CardContent>
             <div className="space-y-3">
               <button 
-                onClick={() => navigate('/employees')}
+                onClick={() => navigate('/attendance')}
                 className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors" 
+                data-testid="mark-attendance-quick-btn"
+              >
+                Mark Attendance
+              </button>
+              <button 
+                onClick={() => navigate('/employees')}
+                className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium transition-colors" 
                 data-testid="add-employee-quick-btn"
               >
-                Add New Employee
+                Add Employee
               </button>
               <button 
-                onClick={() => navigate('/recruitment')}
-                className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium transition-colors" 
-                data-testid="post-job-quick-btn"
-              >
-                Post New Job
-              </button>
-              <button 
-                onClick={() => navigate('/payroll')}
+                onClick={() => navigate('/documents')}
                 className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors" 
-                data-testid="process-payroll-quick-btn"
+                data-testid="upload-document-quick-btn"
               >
-                Process Payroll
+                Upload Document
               </button>
             </div>
           </CardContent>

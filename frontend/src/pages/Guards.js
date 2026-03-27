@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { apiClient } from "@/lib/api";
 import { API, toast } from "@/App";
 import { Shield, Plus, Search, Filter, Edit, Trash2, Eye, CheckCircle, XCircle, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -51,7 +51,7 @@ const Guards = () => {
   const fetchGuards = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/guards`, {
+      const response = await apiClient.get(`${API}/guards`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setGuards(response.data);
@@ -66,7 +66,7 @@ const Guards = () => {
   const fetchSites = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/sites`, {
+      const response = await apiClient.get(`${API}/sites`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSites(response.data);
@@ -78,7 +78,7 @@ const Guards = () => {
   const fetchFieldOfficers = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const response = await axios.get(`${API}/field-officers`, {
+      const response = await apiClient.get(`${API}/field-officers`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setFieldOfficers(response.data);
@@ -111,7 +111,7 @@ const Guards = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("admin_token");
-      await axios.post(`${API}/guards`, formData, {
+      await apiClient.post(`${API}/guards`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success("Guard added successfully");
