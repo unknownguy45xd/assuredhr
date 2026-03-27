@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field, ConfigDict, EmailStr, ValidationError
 from typing import List, Optional, Dict
 import uuid
 from datetime import datetime, timezone, date, timedelta
+import io
+import base64
 from jose import jwt, JWTError, ExpiredSignatureError
 from passlib.context import CryptContext
 import sys
@@ -357,6 +359,17 @@ async def upload_file(file: UploadFile = File(...), current_user: dict = Depends
             "file_name": file.filename,
             "secure_url": upload_result.get("secure_url"),
             "public_id": upload_result.get("public_id"),
+        extension = Path(file.filename).suffix if file.filename else ""
+        firebase_path = f"uploads/{datetime.now(timezone.utc).strftime('%Y/%m/%d')}/{uuid.uuid4().hex}{extension}"
+        public_url = upload_file_to_firebase(
+            file_data=file_bytes,
+            file_path=firebase_path,
+            content_type=file.content_type or "application/octet-stream"
+        )
+        return {
+            "file_name": file.filename,
+            "file_path": firebase_path,
+            "url": public_url,
             "uploaded_by": current_user.get("email"),
         }
     except Exception as exc:
@@ -2262,6 +2275,7 @@ async def startup_event():
         logger.info("Cloudinary configured")
     else:
         logger.warning("Cloudinary env not set. Upload endpoints will fail until configured.")
+    initialize_firebase()
     await db.users.create_index("email", unique=True)
     default_admin = await db.users.find_one({"email": "admin@example.com", "role": "admin"})
     if not default_admin:
