@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime, timezone, date, timedelta
 import io
 import base64
-import jwt
+from jose import jwt, JWTError, ExpiredSignatureError
 from passlib.context import CryptContext
 import sys
 sys.path.append('/app/backend')
@@ -59,26 +59,35 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        role: str = payload.get("role", "employee")
+        subject: str = payload.get("sub")
+        role: str = payload.get("role", "admin")
         
-        if user_id is None:
+        if subject is None:
             raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-        
-        # Check admin users first
-        if role == "admin" or role == "field_officer":
-            user = await db.admin_users.find_one({"id": user_id}, {"_id": 0})
+
+        # Primary admin collection: users
+        user = await db.users.find_one({"email": subject, "role": "admin"}, {"_id": 0})
+        if user:
+            return user
+
+        # Backward compatibility with existing admin_users collection
+        user = await db.admin_users.find_one({"email": subject}, {"_id": 0})
+        if user and user.get("role") in ["admin", "field_officer", "hr", "supervisor", "accountant"]:
+            return user
+
+        # Legacy token compatibility where subject may be user ID
+        if role in ["admin", "field_officer", "hr", "supervisor", "accountant"]:
+            user = await db.users.find_one({"id": subject, "role": "admin"}, {"_id": 0})
             if user:
                 return user
-        
-        # Check employees
-        user = await db.employees.find_one({"id": user_id}, {"_id": 0})
-        if user is None:
-            raise HTTPException(status_code=401, detail="User not found")
-        return user
-    except jwt.ExpiredSignatureError:
+            user = await db.admin_users.find_one({"id": subject}, {"_id": 0})
+            if user:
+                return user
+
+        raise HTTPException(status_code=401, detail="User not found")
+    except ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
-    except jwt.JWTError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
 
 # ============ MODELS ============
@@ -89,9 +98,11 @@ class LoginRequest(BaseModel):
     password: str
 
 class LoginResponse(BaseModel):
-    token: str
+    access_token: str
+    token_type: str = "bearer"
     user: dict
-    role: str  # admin or employee
+    role: str = "admin"
+    token: Optional[str] = None
 
 class AdminUser(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -277,34 +288,86 @@ class DocumentUpload(BaseModel):
 
 @api_router.post("/auth/login", response_model=LoginResponse)
 async def login(login_request: LoginRequest):
-    # Check if admin first
-    admin = await db.admin_users.find_one({"email": login_request.email}, {"_id": 0})
-    if admin:
-        if not verify_password(login_request.password, admin["hashed_password"]):
-            raise HTTPException(status_code=401, detail="Invalid email or password")
-        
-        token = create_access_token({"sub": admin["id"], "email": admin["email"], "role": "admin"})
-        admin_data = {k: v for k, v in admin.items() if k != "hashed_password"}
-        return {"token": token, "user": admin_data, "role": "admin"}
-    
-    # Check employee
-    employee = await db.employees.find_one({"email": login_request.email}, {"_id": 0})
-    if not employee:
+    # Admin-only login from primary users collection
+    admin = await db.users.find_one({"email": login_request.email, "role": "admin"}, {"_id": 0})
+
+    # Backward compatibility with existing admin_users collection
+    if not admin:
+        admin = await db.admin_users.find_one({"email": login_request.email}, {"_id": 0})
+
+    if not admin or not admin.get("hashed_password"):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    
-    if not employee.get("hashed_password"):
-        raise HTTPException(status_code=401, detail="Password not set. Contact HR.")
-    
-    if not verify_password(login_request.password, employee["hashed_password"]):
+
+    if not verify_password(login_request.password, admin["hashed_password"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    
-    if employee.get("status") != "active":
-        raise HTTPException(status_code=401, detail="Account is not active")
-    
-    token = create_access_token({"sub": employee["id"], "email": employee["email"], "role": "employee"})
-    employee_data = {k: v for k, v in employee.items() if k != "hashed_password"}
-    
-    return {"token": token, "user": employee_data, "role": "employee"}
+
+    token = create_access_token({"sub": admin["email"], "role": "admin"})
+    admin_data = {k: v for k, v in admin.items() if k != "hashed_password"}
+    return {"access_token": token, "token_type": "bearer", "token": token, "user": admin_data, "role": "admin"}
+
+
+@app.post("/auth/login", response_model=LoginResponse)
+async def root_login(login_request: LoginRequest):
+    return await login(login_request)
+
+
+@api_router.get("/auth/me")
+async def get_current_admin(current_user: dict = Depends(get_current_user)):
+    safe_user = {k: v for k, v in current_user.items() if k != "hashed_password"}
+    return safe_user
+
+
+@app.get("/auth/me")
+async def root_current_admin(current_user: dict = Depends(get_current_user)):
+    return await get_current_admin(current_user)
+
+
+@api_router.get("/admin/users")
+async def get_admin_users(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    primary_users = await db.users.find(
+        {"role": {"$in": ["admin", "hr", "supervisor", "field_officer", "accountant"]}},
+        {"_id": 0, "hashed_password": 0}
+    ).to_list(1000)
+
+    legacy_users = await db.admin_users.find({}, {"_id": 0, "hashed_password": 0}).to_list(1000)
+
+    # Merge by email/id to avoid duplicates when migration data exists in both collections
+    merged = {}
+    for user in primary_users + legacy_users:
+        key = user.get("email") or user.get("id")
+        if key:
+            merged[key] = user
+
+    return list(merged.values())
+
+
+@api_router.post("/upload")
+async def upload_file(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    try:
+        file_bytes = await file.read()
+        extension = Path(file.filename).suffix if file.filename else ""
+        firebase_path = f"uploads/{datetime.now(timezone.utc).strftime('%Y/%m/%d')}/{uuid.uuid4().hex}{extension}"
+        public_url = upload_file_to_firebase(
+            file_data=file_bytes,
+            file_path=firebase_path,
+            content_type=file.content_type or "application/octet-stream"
+        )
+        return {
+            "file_name": file.filename,
+            "file_path": firebase_path,
+            "url": public_url,
+            "uploaded_by": current_user.get("email"),
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(exc)}")
+
+
+@app.post("/upload")
+async def root_upload_file(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    return await upload_file(file, current_user)
 
 
 # Admin Signup Request Model
@@ -332,33 +395,7 @@ class EmployeeSignupRequest(BaseModel):
 
 @api_router.post("/auth/admin/signup")
 async def admin_signup(signup_request: AdminSignupRequest):
-    # Check if admin already exists
-    existing_admin = await db.admin_users.find_one({"email": signup_request.email})
-    if existing_admin:
-        raise HTTPException(status_code=400, detail="Admin with this email already exists")
-    
-    # Create new admin
-    admin_id = str(uuid.uuid4())
-    hashed_password = hash_password(signup_request.password)
-    
-    admin_data = {
-        "id": admin_id,
-        "email": signup_request.email,
-        "hashed_password": hashed_password,
-        "full_name": signup_request.full_name,
-        "role": "admin",
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    
-    await db.admin_users.insert_one(admin_data)
-    
-    # Create token
-    token = create_access_token({"sub": admin_id, "email": signup_request.email, "role": "admin"})
-    
-    # Return response without password and _id
-    admin_response = {k: v for k, v in admin_data.items() if k not in ["hashed_password", "_id"]}
-    
-    return {"token": token, "user": admin_response, "role": "admin", "message": "Admin account created successfully"}
+    raise HTTPException(status_code=403, detail="Admin signup is disabled.")
 
 @api_router.post("/auth/employee/signup")
 async def employee_signup(signup_request: EmployeeSignupRequest):
@@ -2202,10 +2239,13 @@ async def get_salary_summary(
 # Include the router in the main app
 app.include_router(api_router)
 
+cors_origins = [origin.strip() for origin in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",") if origin.strip()]
+allow_credentials = "*" not in cors_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_credentials=allow_credentials,
+    allow_origins=cors_origins if cors_origins else ["http://localhost:3000"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -2221,8 +2261,32 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def startup_event():
     initialize_firebase()
+    await db.users.create_index("email", unique=True)
+    default_admin = await db.users.find_one({"email": "admin@example.com", "role": "admin"})
+    if not default_admin:
+        await db.users.insert_one({
+            "id": f"admin_{uuid.uuid4().hex[:8]}",
+            "name": "System Admin",
+            "full_name": "System Admin",
+            "email": "admin@example.com",
+            "hashed_password": hash_password("admin123"),
+            "role": "admin",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        logger.info("Default admin user created: admin@example.com")
     logger.info("Application started")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "server:app",
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", "8001")),
+        reload=False,
+    )
