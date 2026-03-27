@@ -727,9 +727,26 @@ async def delete_employee(employee_id: str):
 
 @api_router.post("/attendance", response_model=Attendance)
 async def create_attendance(attendance: AttendanceCreate):
+    employee = await db.employees.find_one({"id": attendance.employee_id}, {"_id": 0})
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    existing = await db.attendance.find_one(
+        {"employee_id": attendance.employee_id, "date": attendance.date},
+        {"_id": 0}
+    )
+
+    if existing:
+        update_payload = attendance.model_dump()
+        await db.attendance.update_one(
+            {"id": existing["id"]},
+            {"$set": update_payload}
+        )
+        updated = await db.attendance.find_one({"id": existing["id"]}, {"_id": 0})
+        return Attendance(**updated)
+
     att_obj = Attendance(**attendance.model_dump())
-    doc = att_obj.model_dump()
-    await db.attendance.insert_one(doc)
+    await db.attendance.insert_one(att_obj.model_dump())
     return att_obj
 
 @api_router.get("/attendance", response_model=List[Attendance])

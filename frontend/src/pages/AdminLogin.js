@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "@/App";
+import { getErrorMessage } from "@/lib/formatters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,7 @@ const AdminLogin = () => {
       navigate("/");
     } catch (error) {
       console.error("Login error:", error);
-      toast.error(error.response?.data?.detail || "Login failed. Please check your credentials.");
+      toast.error(getErrorMessage(error, "Login failed. Please check your credentials."));
     } finally {
       setLoading(false);
     }

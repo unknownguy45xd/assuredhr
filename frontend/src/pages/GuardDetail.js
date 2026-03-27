@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { API, toast } from "@/App";
+import { getErrorMessage } from "@/lib/formatters";
 import { useParams, useNavigate } from "react-router-dom";
 import { Shield, ArrowLeft, Edit, Upload, CheckCircle, XCircle, Clock, FileText, Calendar, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -197,7 +198,7 @@ const GuardDetail = () => {
       fetchDocuments();
     } catch (error) {
       console.error("Error uploading document:", error);
-      toast.error(error.response?.data?.detail || "Failed to upload document");
+      toast.error(getErrorMessage(error, "Failed to upload document"));
     }
   };
 
