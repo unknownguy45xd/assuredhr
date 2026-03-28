@@ -1,0 +1,127 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { toast } from "@/App";
+import { getErrorMessage } from "@/lib/formatters";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Lock, Mail, Eye, EyeOff, Shield } from "lucide-react";
+
+const AdminLogin = () => {
+  const navigate = useNavigate();
+  const backendUrl = process.env.REACT_APP_BACKEND_URL;
+  const [formData, setFormData] = useState({
+    email: "",
+    password: ""
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const response = await axios.post(`${backendUrl}/auth/login`, formData);
+      const { access_token, token, user, role } = response.data;
+      
+      const allowedRoles = ["admin"];
+      if (!allowedRoles.includes(role)) {
+        toast.error("Access denied. Admin credentials required.");
+        setLoading(false);
+        return;
+      }
+      
+      // Store token, user data, and role
+      localStorage.setItem("admin_token", access_token || token);
+      localStorage.setItem("admin_data", JSON.stringify(user));
+      localStorage.setItem("user_role", role);
+      
+      toast.success(`Welcome back, ${user.full_name}!`);
+      navigate("/");
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error(getErrorMessage(error, "Login failed. Please check your credentials."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Logo/Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 mb-4">
+            <Shield className="w-10 h-10 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Assured Security Services</h1>
+          <p className="text-gray-600">Workforce Management System</p>
+        </div>
+
+        <Card className="shadow-xl">
+          <CardHeader>
+            <CardTitle className="text-2xl text-center">Admin Sign In</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <Label>Email Address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Input
+                    type="email"
+                    placeholder="admin@assured.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="pl-10"
+                    required
+                    data-testid="admin-email-input"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="pl-10 pr-10"
+                    required
+                    data-testid="admin-password-input"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full bg-indigo-600 hover:bg-indigo-700"
+                disabled={loading}
+                data-testid="admin-login-btn"
+              >
+                {loading ? "Signing in..." : "Sign In"}
+              </Button>
+            </form>
+
+
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default AdminLogin;
