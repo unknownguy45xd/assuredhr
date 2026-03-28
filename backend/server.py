@@ -318,6 +318,12 @@ async def approve_reimbursement(
     return updated
 
 
+def ensure_local_storage_configured() -> None:
+    return None
+
+
+async def upload_to_local_storage(file: UploadFile, folder: str) -> Dict[str, Any]:
+    ensure_local_storage_configured()
 def ensure_cloudinary_configured() -> None:
     return None
 
@@ -354,7 +360,7 @@ async def upload_document(
     notes: str | None = Query(default=""),
     current_user: Dict[str, Any] = Depends(require_auth),
 ):
-    upload = await upload_to_cloudinary(file, "assuredhr/documents")
+    upload = await upload_to_local_storage(file, "assuredhr/documents")
     return await insert_one(
         "documents",
         {
@@ -381,7 +387,7 @@ async def upload_employee_document(
     document_type: str = Form(default="general"),
     current_user: Dict[str, Any] = Depends(require_auth),
 ):
-    upload = await upload_to_cloudinary(file, "assuredhr/employee-documents")
+    upload = await upload_to_local_storage(file, "assuredhr/employee-documents")
     return await insert_one(
         "documents",
         {
