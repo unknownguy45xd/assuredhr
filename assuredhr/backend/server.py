@@ -110,12 +110,81 @@ async def dashboard_stats(current_user: Dict[str, Any] = Depends(require_auth)):
     sites = await db["sites"].count_documents({})
     clients = await db["clients"].count_documents({})
     pending_leaves = await db["leave_requests"].count_documents({"status": "pending"})
+    open_positions = await db["job_postings"].count_documents({"status": "open"})
+    pending_onboarding_tasks = await db["onboarding_tasks"].count_documents({"status": "pending"})
     return {
         "total_employees": employees,
         "total_guards": guards,
         "total_sites": sites,
         "total_clients": clients,
         "pending_leaves": pending_leaves,
+        "open_positions": open_positions,
+        "pending_onboarding_tasks": pending_onboarding_tasks,
+    }
+
+
+@app.get("/api/dashboard/trends")
+async def dashboard_trends(
+    period: str = Query(default="week"),
+    start_date: str = Query(default=None),
+    end_date: str = Query(default=None),
+    current_user: Dict[str, Any] = Depends(require_auth),
+):
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+
+    if period == "day":
+        num_points = 24
+        delta = timedelta(hours=1)
+        fmt = "%H:00"
+    elif period == "month":
+        num_points = 30
+        delta = timedelta(days=1)
+        fmt = "%d %b"
+    elif period == "custom" and start_date and end_date:
+        try:
+            start = datetime.fromisoformat(start_date).replace(tzinfo=timezone.utc)
+            end = datetime.fromisoformat(end_date).replace(tzinfo=timezone.utc)
+            num_points = min((end - start).days + 1, 60)
+            delta = timedelta(days=1)
+            fmt = "%d %b"
+        except Exception:
+            num_points = 7
+            delta = timedelta(days=1)
+            fmt = "%d %b"
+    else:  # week
+        num_points = 7
+        delta = timedelta(days=1)
+        fmt = "%a"
+
+    # Get current counts (static — no time series in DB yet, so we generate flat lines)
+    total_employees = await db["employees"].count_documents({})
+    pending_leaves = await db["leave_requests"].count_documents({"status": "pending"})
+    open_positions = await db["job_postings"].count_documents({"status": "open"})
+    pending_onboarding = await db["onboarding_tasks"].count_documents({"status": "pending"})
+
+    def make_series(base_value, num_points, delta, fmt, now):
+        return [
+            {"time": (now - delta * (num_points - 1 - i)).strftime(fmt), "value": base_value}
+            for i in range(num_points)
+        ]
+
+    trends = {
+        "total_employees": make_series(total_employees, num_points, delta, fmt, now),
+        "pending_leaves": make_series(pending_leaves, num_points, delta, fmt, now),
+        "open_positions": make_series(open_positions, num_points, delta, fmt, now),
+        "pending_onboarding_tasks": make_series(pending_onboarding, num_points, delta, fmt, now),
+    }
+
+    return {
+        "trends": trends,
+        "changes": {
+            "total_employees": 0,
+            "pending_leaves": 0,
+            "open_positions": 0,
+            "pending_onboarding_tasks": 0,
+        },
     }
 
 
