@@ -324,6 +324,11 @@ def ensure_local_storage_configured() -> None:
 
 async def upload_to_local_storage(file: UploadFile, folder: str) -> Dict[str, Any]:
     ensure_local_storage_configured()
+def ensure_cloudinary_configured() -> None:
+    return None
+
+
+async def upload_to_cloudinary(file: UploadFile, folder: str) -> Dict[str, Any]:
     file_bytes = await file.read()
     if not file_bytes:
         raise HTTPException(400, "Empty file")
