@@ -35,6 +35,7 @@ const Attendance = () => {
   const [selectedStatuses, setSelectedStatuses] = useState([]);
   const [timeFilter, setTimeFilter] = useState(""); // early, on-time, late
   const [selectedDepartments, setSelectedDepartments] = useState([]);
+  const [quickMarkDate, setQuickMarkDate] = useState(new Date().toISOString().split("T")[0]);
 
   useEffect(() => {
     fetchData();
@@ -83,7 +84,7 @@ const Attendance = () => {
       const checkIn = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
       await apiClient.post(`/attendance`, {
         employee_id: employeeId,
-        date: new Date().toISOString().split("T")[0],
+        date: quickMarkDate,
         check_in: checkIn,
         status: "present",
         notes: "Quick marked from dashboard"
@@ -92,6 +93,16 @@ const Attendance = () => {
       fetchData();
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to mark attendance"));
+    }
+  };
+
+  const handleMarkAllPresent = async () => {
+    try {
+      await apiClient.post(`/attendance/mark-all-present`, { date: quickMarkDate, target: "guards" });
+      toast.success("Marked all guards present");
+      fetchData();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to mark all guards"));
     }
   };
 
@@ -306,8 +317,23 @@ const Attendance = () => {
           <CardTitle>Quick Mark Attendance (Present)</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="flex flex-col md:flex-row md:items-end gap-3 mb-4">
+            <div>
+              <Label htmlFor="quick-mark-date">Date</Label>
+              <Input
+                id="quick-mark-date"
+                type="date"
+                value={quickMarkDate}
+                onChange={(e) => setQuickMarkDate(e.target.value)}
+                data-testid="quick-mark-date-input"
+              />
+            </div>
+            <Button variant="secondary" onClick={handleMarkAllPresent} data-testid="mark-all-guards-btn">
+              Mark All Guards Present
+            </Button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {employees.slice(0, 9).map((emp) => (
+            {employees.map((emp) => (
               <Button
                 key={emp.id}
                 variant="outline"

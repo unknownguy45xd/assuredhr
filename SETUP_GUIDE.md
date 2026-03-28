@@ -1,4 +1,4 @@
-# AssuredHR Setup Guide (Mongo Atlas + Cloudinary + JWT)
+# AssuredHR Setup Guide (MongoDB + Local Storage + JWT)
 
 This guide matches the rebuilt backend.
 
@@ -6,8 +6,7 @@ This guide matches the rebuilt backend.
 
 - Python 3.10+
 - Node 18+
-- MongoDB Atlas cluster
-- Cloudinary account
+- MongoDB Atlas cluster (or local MongoDB)
 
 ## 2) Backend structure
 
@@ -38,9 +37,8 @@ JWT_SECRET_KEY=change-me-in-production
 JWT_ALGORITHM=HS256
 JWT_EXPIRE_HOURS=24
 
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
+# Optional: defaults to ./storage inside backend folder
+LOCAL_STORAGE_ROOT=./storage
 ```
 
 ## 4) Install and run backend
@@ -78,7 +76,21 @@ npm install
 npm start
 ```
 
-## 7) Route compatibility
+## 7) File storage behavior
+
+Uploaded files are stored on local disk under:
+
+```text
+backend/storage/uploads/...
+```
+
+and served from:
+
+```text
+/static/<path>
+```
+
+## 8) Route compatibility
 
 Backend supports existing frontend route patterns:
 
@@ -90,7 +102,7 @@ Backend supports existing frontend route patterns:
   - `POST /api/employee/documents/upload`
   - `PUT /api/documents/{id}/verify`
 
-## 8) Quick smoke tests
+## 9) Quick smoke tests
 
 ```bash
 curl http://127.0.0.1:8001/health

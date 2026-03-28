@@ -1,13 +1,13 @@
-import io
 import os
+from pathlib import Path
+from uuid import uuid4
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 
-import cloudinary
-import cloudinary.uploader
 from bson import ObjectId
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from auth import authenticate_user, create_access_token, register_user, require_auth
 from db import db, find_many, find_one, insert_one, update_one
@@ -23,12 +23,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
-    api_key=os.getenv("CLOUDINARY_API_KEY"),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
-    secure=True,
-)
+LOCAL_STORAGE_ROOT = Path(os.getenv("LOCAL_STORAGE_ROOT", Path(__file__).resolve().parent / "storage"))
+LOCAL_UPLOADS_DIR = LOCAL_STORAGE_ROOT / "uploads"
+LOCAL_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(LOCAL_STORAGE_ROOT)), name="static")
 
 
 @app.get("/health", response_model=MessageResponse)
@@ -215,6 +213,17 @@ async def create_resource(resource: str, payload: Dict[str, Any], current_user: 
     collection = CRUD_COLLECTIONS.get(resource)
     if not collection:
         raise HTTPException(404, "Resource not found")
+    if collection == "attendance":
+        employee_id = payload.get("employee_id") or payload.get("guard_id")
+        date_value = payload.get("date")
+        if not employee_id or not date_value:
+            raise HTTPException(400, "employee_id (or guard_id) and date are required for attendance")
+        payload["employee_id"] = employee_id
+        existing = await db["attendance"].find_one({"employee_id": employee_id, "date": date_value})
+        if existing:
+            updated_payload = {**payload, "marked_by": current_user.get("id")}
+            return await update_one("attendance", str(existing["_id"]), updated_payload)
+        payload["marked_by"] = current_user.get("id")
     return await insert_one(collection, payload)
 
 
@@ -309,18 +318,30 @@ async def approve_reimbursement(
     return updated
 
 
-def ensure_cloudinary_configured() -> None:
-    if not os.getenv("CLOUDINARY_CLOUD_NAME") or not os.getenv("CLOUDINARY_API_KEY") or not os.getenv("CLOUDINARY_API_SECRET"):
-        raise HTTPException(status_code=500, detail="Cloudinary is not configured")
+def ensure_local_storage_configured() -> None:
+    return None
 
 
-async def upload_to_cloudinary(file: UploadFile, folder: str) -> Dict[str, Any]:
-    ensure_cloudinary_configured()
+async def upload_to_local_storage(file: UploadFile, folder: str) -> Dict[str, Any]:
+    ensure_local_storage_configured()
     file_bytes = await file.read()
     if not file_bytes:
         raise HTTPException(400, "Empty file")
-    result = cloudinary.uploader.upload(io.BytesIO(file_bytes), folder=folder, resource_type="auto", public_id=None)
-    return result
+    safe_folder = folder.replace("\\", "/").strip("/").replace("..", "")
+    target_dir = LOCAL_UPLOADS_DIR / safe_folder
+    target_dir.mkdir(parents=True, exist_ok=True)
+    original_ext = Path(file.filename or "").suffix
+    generated_name = f"{uuid4().hex}{original_ext}"
+    target_path = target_dir / generated_name
+    with target_path.open("wb") as local_file:
+        local_file.write(file_bytes)
+    relative_path = target_path.relative_to(LOCAL_STORAGE_ROOT).as_posix()
+    return {
+        "secure_url": f"/static/{relative_path}",
+        "public_id": relative_path,
+        "resource_type": "raw",
+        "file_path": str(target_path),
+    }
 
 
 @app.post("/api/upload")
@@ -334,7 +355,7 @@ async def upload_document(
     notes: str | None = Query(default=""),
     current_user: Dict[str, Any] = Depends(require_auth),
 ):
-    upload = await upload_to_cloudinary(file, "assuredhr/documents")
+    upload = await upload_to_local_storage(file, "assuredhr/documents")
     return await insert_one(
         "documents",
         {
@@ -347,6 +368,8 @@ async def upload_document(
             "uploaded_by": current_user.get("id"),
             "filename": file.filename,
             "url": upload.get("secure_url"),
+            "file_url": upload.get("secure_url"),
+            "file_path": upload.get("file_path"),
             "public_id": upload.get("public_id"),
             "resource_type": upload.get("resource_type", "raw"),
         },
@@ -359,7 +382,7 @@ async def upload_employee_document(
     document_type: str = Form(default="general"),
     current_user: Dict[str, Any] = Depends(require_auth),
 ):
-    upload = await upload_to_cloudinary(file, "assuredhr/employee-documents")
+    upload = await upload_to_local_storage(file, "assuredhr/employee-documents")
     return await insert_one(
         "documents",
         {
@@ -369,6 +392,8 @@ async def upload_employee_document(
             "uploaded_by": current_user.get("id"),
             "filename": file.filename,
             "url": upload.get("secure_url"),
+            "file_url": upload.get("secure_url"),
+            "file_path": upload.get("file_path"),
             "public_id": upload.get("public_id"),
             "resource_type": upload.get("resource_type", "raw"),
         },
@@ -445,6 +470,60 @@ async def employee_payslips(current_user: Dict[str, Any] = Depends(require_auth)
 @app.get("/api/employee/documents")
 async def employee_documents(current_user: Dict[str, Any] = Depends(require_auth)):
     return await find_many("documents", {"employee_id": current_user.get("id")})
+
+
+@app.post("/api/attendance/mark-bulk")
+async def mark_attendance_bulk(payload: Dict[str, Any], current_user: Dict[str, Any] = Depends(require_auth)):
+    date_value = payload.get("date")
+    records = payload.get("records", [])
+    if not date_value:
+        raise HTTPException(400, "date is required")
+    if not isinstance(records, list):
+        raise HTTPException(400, "records must be a list")
+
+    marked = 0
+    for record in records:
+        employee_id = record.get("employee_id") or record.get("guard_id")
+        if not employee_id:
+            continue
+        attendance_payload = {
+            "employee_id": employee_id,
+            "guard_id": record.get("guard_id"),
+            "date": date_value,
+            "status": record.get("status", "present"),
+            "check_in": record.get("check_in"),
+            "check_out": record.get("check_out"),
+            "notes": record.get("notes", "Bulk marked"),
+            "marked_by": current_user.get("id"),
+        }
+        existing = await db["attendance"].find_one({"employee_id": employee_id, "date": date_value})
+        if existing:
+            await update_one("attendance", str(existing["_id"]), attendance_payload)
+        else:
+            await insert_one("attendance", attendance_payload)
+        marked += 1
+
+    return {"message": f"Attendance marked for {marked} employees", "date": date_value, "count": marked}
+
+
+@app.post("/api/attendance/mark-all-present")
+async def mark_all_present(payload: Dict[str, Any], current_user: Dict[str, Any] = Depends(require_auth)):
+    date_value = payload.get("date")
+    target = payload.get("target", "guards")
+    if not date_value:
+        raise HTTPException(400, "date is required")
+    if target not in {"guards", "employees"}:
+        raise HTTPException(400, "target must be either guards or employees")
+
+    collection_name = "guards" if target == "guards" else "employees"
+    people = await find_many(collection_name, {"status": {"$ne": "inactive"}})
+    records = []
+    for person in people:
+        record = {"employee_id": person["id"], "status": "present", "notes": "Marked all present"}
+        if target == "guards":
+            record["guard_id"] = person["id"]
+        records.append(record)
+    return await mark_attendance_bulk({"date": date_value, "records": records}, current_user)
 
 
 @app.get("/api/documents/{doc_id}/download")
