@@ -44,9 +44,14 @@ async def insert_one(collection: str, payload: Dict[str, Any]) -> Dict[str, Any]
 async def update_one(collection: str, doc_id: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     from bson import ObjectId
 
+    try:
+        object_id = ObjectId(doc_id)
+    except Exception:
+        return None
+
     payload = {**payload, "updated_at": now_iso()}
-    await db[collection].update_one({"_id": ObjectId(doc_id)}, {"$set": payload})
-    doc = await db[collection].find_one({"_id": ObjectId(doc_id)})
+    await db[collection].update_one({"_id": object_id}, {"$set": payload})
+    doc = await db[collection].find_one({"_id": object_id})
     if not doc:
         return None
     doc["id"] = str(doc.pop("_id"))
